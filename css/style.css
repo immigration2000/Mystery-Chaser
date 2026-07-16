@@ -1,0 +1,170 @@
+/* 미스테리 체이서: 검은 촛불 — 다크 고딕 테마 */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0d0b10;
+  --bg2: #17131d;
+  --panel: #1e1826;
+  --ink: #d8d0c4;
+  --dim: #7c7386;
+  --gold: #c9a227;
+  --blood: #8e2f3c;
+  --common: #8a8a8a;
+  --rare: #4f8fd0;
+  --hero: #9b59d0;
+  --legend: #e0b62f;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Noto Serif KR', 'Nanum Myeongjo', serif;
+  min-height: 100%;
+}
+
+body {
+  max-width: 480px;
+  margin: 0 auto;
+  background:
+    radial-gradient(ellipse at 50% -10%, #241c30 0%, var(--bg) 60%);
+}
+
+.screen { display: none; padding: 20px 16px 40px; min-height: 100vh; }
+.screen.active { display: block; }
+
+/* 타이틀 */
+.title-wrap { text-align: center; padding-top: 14vh; }
+.title-candle { font-size: 52px; animation: flicker 2.4s infinite; }
+@keyframes flicker {
+  0%, 100% { opacity: 1; } 46% { opacity: .75; } 52% { opacity: .95; } 70% { opacity: .6; }
+}
+.game-title {
+  font-size: 34px; letter-spacing: 6px; color: var(--gold);
+  text-shadow: 0 0 18px rgba(201,162,39,.35); margin-top: 12px;
+}
+.game-subtitle { font-size: 16px; font-weight: normal; color: var(--dim); letter-spacing: 10px; margin: 10px 0 26px; }
+.fan-note { font-size: 11px; color: var(--dim); line-height: 1.7; margin-bottom: 34px; }
+
+/* 버튼 */
+.btn {
+  display: inline-block; padding: 12px 22px; margin: 6px 4px;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid #3a3145; border-radius: 4px;
+  font-family: inherit; font-size: 15px; cursor: pointer;
+  transition: all .15s;
+}
+.btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.btn:disabled { opacity: .35; cursor: default; }
+.btn-gold { border-color: var(--gold); color: var(--gold); background: rgba(201,162,39,.08); }
+.btn-dim { color: var(--dim); font-size: 13px; }
+.btn-block { display: block; width: 100%; margin: 8px 0; }
+
+.screen-title {
+  font-size: 20px; color: var(--gold); text-align: center;
+  letter-spacing: 3px; margin-bottom: 16px;
+  padding-bottom: 12px; border-bottom: 1px solid #33293f;
+}
+
+/* 캐릭터 선택 */
+.char-card {
+  background: var(--panel); border: 1px solid #3a3145; border-radius: 6px;
+  padding: 14px; margin-bottom: 12px; cursor: pointer; transition: border-color .15s;
+}
+.char-card:hover { border-color: var(--gold); }
+.char-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.char-icon { font-size: 30px; }
+.char-name { font-size: 17px; color: var(--gold); }
+.char-title { font-size: 12px; color: var(--dim); }
+.char-stats { font-size: 12px; color: var(--dim); margin-bottom: 6px; }
+.char-skill { font-size: 13px; line-height: 1.5; }
+.char-skill b { color: var(--rare); }
+
+/* 허브 */
+.hub-status {
+  background: var(--panel); border: 1px solid #3a3145; border-radius: 6px;
+  padding: 14px; margin-bottom: 18px; font-size: 14px; line-height: 1.8;
+}
+.hub-status .gold { color: var(--gold); }
+.expbar { height: 6px; background: #0a080d; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.expfill { height: 100%; background: var(--rare); transition: width .3s; }
+
+/* 챕터 */
+.chapter-item {
+  background: var(--panel); border: 1px solid #3a3145; border-radius: 6px;
+  padding: 13px 14px; margin-bottom: 10px; cursor: pointer;
+}
+.chapter-item:hover:not(.locked) { border-color: var(--gold); }
+.chapter-item.locked { opacity: .4; cursor: default; }
+.chapter-item .ch-title { font-size: 15px; color: var(--ink); }
+.chapter-item .ch-sub { font-size: 12px; color: var(--dim); margin-top: 4px; }
+.chapter-item.cleared .ch-title::after { content: ' ✓'; color: var(--gold); }
+
+/* 스토리 씬 */
+.scene-place { text-align: center; color: var(--dim); font-size: 13px; margin-bottom: 18px; }
+.scene-text p {
+  font-size: 15px; line-height: 1.9; margin-bottom: 14px;
+  text-align: left;
+}
+.scene-text { margin-bottom: 24px; }
+
+/* 전투 */
+.battle-enemy, .battle-player { margin-bottom: 10px; }
+.unit-info { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+.hpbar { height: 14px; background: #0a080d; border: 1px solid #3a3145; border-radius: 3px; overflow: hidden; }
+.hpfill { height: 100%; background: linear-gradient(90deg, #2e7d4f, #55b877); transition: width .3s; }
+.hpfill.enemy { background: linear-gradient(90deg, #7d2e3a, #b8555f); }
+.buffs { font-size: 11px; color: var(--rare); margin-top: 4px; min-height: 14px; }
+
+.battle-log {
+  background: rgba(0,0,0,.35); border: 1px solid #2c2436; border-radius: 4px;
+  height: 150px; overflow-y: auto; padding: 10px; margin: 12px 0;
+  font-size: 12.5px; line-height: 1.75; color: #b6adc2;
+}
+.battle-log .lg-hit { color: var(--ink); }
+.battle-log .lg-bad { color: #d98a94; }
+.battle-log .lg-good { color: #8fd0a8; }
+.battle-log .lg-sys { color: var(--gold); }
+
+.hand { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; min-height: 108px; }
+.card {
+  flex: 0 0 84px; background: var(--panel); border-radius: 6px; padding: 8px 6px;
+  text-align: center; cursor: pointer; border: 1px solid var(--common);
+  transition: transform .12s;
+}
+.card:hover { transform: translateY(-4px); }
+.card.disabled { opacity: .4; cursor: default; }
+.card.disabled:hover { transform: none; }
+.card .c-icon { font-size: 22px; }
+.card .c-name { font-size: 11px; margin: 4px 0 2px; line-height: 1.3; }
+.card .c-desc { font-size: 9.5px; color: var(--dim); line-height: 1.35; }
+.card.r-common { border-color: var(--common); }
+.card.r-rare { border-color: var(--rare); }
+.card.r-hero { border-color: var(--hero); box-shadow: 0 0 8px rgba(155,89,208,.25); }
+.card.r-legend { border-color: var(--legend); box-shadow: 0 0 10px rgba(224,182,47,.35); }
+
+.battle-actions { display: flex; gap: 8px; }
+.battle-actions .btn { flex: 1; margin: 0; }
+
+/* 뽑기 */
+.gacha-result { min-height: 170px; display: flex; align-items: center; justify-content: center; padding: 14px 0; }
+.gacha-card {
+  width: 150px; background: var(--panel); border-radius: 8px; padding: 18px 12px;
+  text-align: center; border: 2px solid var(--common);
+  animation: reveal .45s ease-out;
+}
+@keyframes reveal { from { transform: scale(.6) rotateY(90deg); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.gacha-card .g-icon { font-size: 40px; }
+.gacha-card .g-rarity { font-size: 11px; margin-top: 8px; letter-spacing: 2px; }
+.gacha-card .g-name { font-size: 15px; margin: 6px 0; }
+.gacha-card .g-desc { font-size: 11px; color: var(--dim); line-height: 1.5; }
+
+/* 보관함 */
+.deck-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 18px; }
+.deck-list .card { flex: none; cursor: default; }
+.deck-list .card:hover { transform: none; }
+.c-count { font-size: 10px; color: var(--gold); margin-top: 3px; }
+
+.rc-common { color: var(--common); }
+.rc-rare { color: var(--rare); }
+.rc-hero { color: var(--hero); }
+.rc-legend { color: var(--legend); }

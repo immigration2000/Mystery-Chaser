@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>미스테리 체이서: 검은 촛불 (팬메이드)</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- 타이틀 -->
+<section id="screen-title" class="screen active">
+  <div class="title-wrap">
+    <p class="title-candle">🕯️</p>
+    <h1 class="game-title">미스테리 체이서</h1>
+    <h2 class="game-subtitle">— 검은 촛불 —</h2>
+    <p class="fan-note">2013년 모바일 게임 「미스테리 체이서」 팬메이드 리메이크<br>비상업 팬 프로젝트이며 원작과 무관합니다</p>
+    <button id="btn-start" class="btn btn-gold">추적 시작</button>
+    <button id="btn-reset" class="btn btn-dim">기록 삭제</button>
+  </div>
+</section>
+
+<!-- 캐릭터 선택 -->
+<section id="screen-select" class="screen">
+  <h2 class="screen-title">체이서를 선택하라</h2>
+  <div id="char-list" class="char-list"></div>
+</section>
+
+<!-- 허브 -->
+<section id="screen-hub" class="screen">
+  <header id="hub-status" class="hub-status"></header>
+  <div class="hub-menu">
+    <button class="btn btn-gold btn-block" data-nav="story">📖 스토리 — 사건 추적</button>
+    <button class="btn btn-block" data-nav="gacha">🃏 카드 뽑기</button>
+    <button class="btn btn-block" data-nav="deck">🗂️ 카드 보관함</button>
+    <button class="btn btn-block" data-nav="substory">📜 나의 사연</button>
+    <button class="btn btn-dim btn-block" data-nav="title">타이틀로</button>
+  </div>
+</section>
+
+<!-- 챕터 선택 -->
+<section id="screen-story" class="screen">
+  <h2 class="screen-title">사건 파일</h2>
+  <div id="chapter-list" class="chapter-list"></div>
+  <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
+</section>
+
+<!-- 스토리 씬 -->
+<section id="screen-scene" class="screen">
+  <h2 id="scene-title" class="screen-title"></h2>
+  <p id="scene-place" class="scene-place"></p>
+  <div id="scene-text" class="scene-text"></div>
+  <button id="btn-scene-next" class="btn btn-gold btn-block"></button>
+</section>
+
+<!-- 전투 -->
+<section id="screen-battle" class="screen">
+  <div class="battle-enemy">
+    <div id="enemy-info" class="unit-info"></div>
+    <div class="hpbar"><div id="enemy-hp" class="hpfill enemy"></div></div>
+  </div>
+  <div id="battle-log" class="battle-log"></div>
+  <div class="battle-player">
+    <div id="player-info" class="unit-info"></div>
+    <div class="hpbar"><div id="player-hp" class="hpfill"></div></div>
+    <div id="player-buffs" class="buffs"></div>
+  </div>
+  <div id="hand" class="hand"></div>
+  <div class="battle-actions">
+    <button id="btn-skill" class="btn"></button>
+    <button id="btn-attack" class="btn btn-gold">⚔️ 공격</button>
+  </div>
+</section>
+
+<!-- 결과 -->
+<section id="screen-result" class="screen">
+  <h2 id="result-title" class="screen-title"></h2>
+  <div id="result-body" class="scene-text"></div>
+  <button id="btn-result-ok" class="btn btn-gold btn-block">확인</button>
+</section>
+
+<!-- 카드 뽑기 -->
+<section id="screen-gacha" class="screen">
+  <h2 class="screen-title">🕯️ 밀랍 상인의 좌판</h2>
+  <p class="scene-place">"어느 초를 녹이면 뭐가 나올지는... 나도 몰라."</p>
+  <div id="gacha-result" class="gacha-result"></div>
+  <button id="btn-gacha" class="btn btn-gold btn-block"></button>
+  <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
+</section>
+
+<!-- 카드 보관함 -->
+<section id="screen-deck" class="screen">
+  <h2 class="screen-title">카드 보관함</h2>
+  <p class="scene-place">보유한 모든 카드가 전투 시작 시 뒤섞여 산차가 된다</p>
+  <div id="deck-list" class="deck-list"></div>
+  <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
+</section>
+
+<!-- 서브 스토리 -->
+<section id="screen-substory" class="screen">
+  <h2 id="substory-title" class="screen-title"></h2>
+  <div id="substory-text" class="scene-text"></div>
+  <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
+</section>
+
+<script src="js/data.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
