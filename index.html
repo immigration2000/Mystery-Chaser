@@ -56,6 +56,7 @@
   <p id="scene-place" class="scene-place"></p>
   <div id="scene-text" class="scene-text"></div>
   <button id="btn-scene-next" class="btn btn-gold btn-block"></button>
+  <button id="btn-scene-skip" class="btn btn-dim btn-block" style="display:none">⏩ 건너뛰고 전투</button>
 </section>
 
 <!-- 전투 -->
@@ -73,6 +74,7 @@
   </div>
   <div id="hand" class="hand"></div>
   <div class="battle-actions">
+    <button id="btn-flee" class="btn btn-dim btn-flee">🏃 도주</button>
     <button id="btn-skill" class="btn"></button>
     <button id="btn-attack" class="btn btn-gold">⚔️ 공격</button>
   </div>
@@ -115,6 +117,8 @@
   <p class="scene-place">"어느 초를 녹이면 뭐가 나올지는... 나도 몰라."</p>
   <div id="gacha-result" class="gacha-result"></div>
   <button id="btn-gacha" class="btn btn-gold btn-block"></button>
+  <button id="btn-gacha10" class="btn btn-block"></button>
+  <p class="gacha-rates">획득 확률 — <span class="rc-common">일반 60%</span> · <span class="rc-rare">희귀 25%</span> · <span class="rc-hero">영웅 12%</span> · <span class="rc-legend">전설 3%</span><br>전설 미획득 30회째에는 전설 확정 (천장)</p>
   <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
 </section>
 

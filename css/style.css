@@ -151,6 +151,16 @@ body {
 
 .battle-actions { display: flex; gap: 8px; }
 .battle-actions .btn { flex: 1; margin: 0; }
+.battle-actions .btn-flee { flex: 0 0 auto; padding-left: 10px; padding-right: 10px; }
+
+.gacha-rates { text-align: center; font-size: 11px; color: var(--dim); line-height: 1.7; margin: 10px 0; }
+.gacha-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; }
+.gacha-mini {
+  background: var(--panel); border: 1px solid var(--common); border-radius: 5px;
+  padding: 7px 2px; text-align: center; animation: reveal .4s ease-out;
+}
+.gacha-mini .m-icon { font-size: 18px; }
+.gacha-mini .m-name { font-size: 9px; line-height: 1.25; margin-top: 3px; }
 
 /* 뽑기 */
 .gacha-result { min-height: 170px; display: flex; align-items: center; justify-content: center; padding: 14px 0; }

@@ -54,6 +54,8 @@ function save() {
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
 }
 
+let saveWasCorrupted = false; // 파손 세이브 감지 (FR-25)
+
 function load() {
   try {
     // 마이그레이션 체인: v1 → v2(upgrades/pity) → v3(daily) → v4(pvp) (FEATURE_SPEC §9.2)
@@ -63,7 +65,7 @@ function load() {
       || localStorage.getItem(SAVE_KEY_V1);
     if (!raw) return null;
     const s = JSON.parse(raw);
-    if (!s || !CHARACTERS[s.charId]) return null;
+    if (!s || !CHARACTERS[s.charId]) { saveWasCorrupted = true; return null; }
     if (!s.upgrades) s.upgrades = {};
     if (typeof s.pity !== 'number') s.pity = 0;
     if (!s.daily || !s.daily.date) s.daily = freshDaily();
@@ -74,6 +76,7 @@ function load() {
     localStorage.removeItem(SAVE_KEY_V3);
     return s;
   } catch (e) {
+    saveWasCorrupted = true;
     return null;
   }
 }
@@ -147,7 +150,20 @@ function gainExp(amount) {
 }
 
 // ---------- 타이틀 / 캐릭터 선택 ----------
+// 저장 존재 시 이어하기 표기 (FR-25)
+function renderTitle() {
+  const s = load();
+  const btn = $('#btn-start');
+  if (s) {
+    const c = CHARACTERS[s.charId];
+    btn.textContent = `이어서 추적 — ${c.icon} ${c.name} Lv.${s.level}`;
+  } else {
+    btn.textContent = '추적 시작';
+  }
+}
+
 function initTitle() {
+  renderTitle();
   $('#btn-start').onclick = () => {
     const saved = load();
     if (saved) {
@@ -155,6 +171,10 @@ function initTitle() {
       renderHub();
       show('hub');
     } else {
+      if (saveWasCorrupted) {
+        alert('저장 데이터를 읽을 수 없어 새 추적을 시작합니다.');
+        saveWasCorrupted = false;
+      }
       renderCharSelect();
       show('select');
     }
@@ -166,6 +186,7 @@ function initTitle() {
       localStorage.removeItem(SAVE_KEY_V2);
       localStorage.removeItem(SAVE_KEY_V1);
       state = null;
+      renderTitle();
       alert('기록이 삭제되었습니다.');
     }
   };
@@ -264,7 +285,7 @@ document.querySelectorAll('[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {
     const to = btn.dataset.nav;
     if (to === 'hub') { renderHub(); show('hub'); }
-    else if (to === 'title') { show('title'); }
+    else if (to === 'title') { renderTitle(); show('title'); }
     else if (to === 'story') { renderChapters(); show('story'); }
     else if (to === 'gacha') { renderGacha(); show('gacha'); }
     else if (to === 'deck') { renderDeck(); show('deck'); }
@@ -302,6 +323,14 @@ function startScene(chapterIdx, phase) {
   const lines = phase === 'intro' ? ch.intro : ch.outro;
   $('#scene-text').innerHTML = lines.map(t => `<p>${t}</p>`).join('');
   $('#btn-scene-next').textContent = phase === 'intro' ? '⚔️ 전투 시작' : '계속';
+  // 클리어한 챕터의 재도전은 스토리 스킵 가능 (FR-23)
+  const skipBtn = $('#btn-scene-skip');
+  if (phase === 'intro' && chapterIdx < state.cleared) {
+    skipBtn.style.display = 'block';
+    skipBtn.onclick = () => startBattle(chapterIdx);
+  } else {
+    skipBtn.style.display = 'none';
+  }
   show('scene');
 }
 
@@ -331,17 +360,17 @@ function renderDungeon() {
   $('#dungeon-info').innerHTML = `
     <div>오늘 남은 순찰: <b class="gold">${runs} / ${DUNGEON_RUNS_PER_DAY}회</b> <span style="color:var(--dim)">(날짜가 바뀌면 초기화)</span></div>
     <div>위협 수준 (Lv.${state.level}): HP ${es.hp} · 공격 ${es.atk} · 방어 ${es.def} · 민첩 ${es.agi}</div>
-    <div>보수: 🪙 ${rw.gold} 골드 · EXP ${rw.exp} · ${Math.round(DUNGEON_CARD_DROP * 100)}% 확률로 카드 1장</div>`;
+    <div>보수: 🪙 ${rw.gold} 골드 · EXP ${rw.exp} · ${Math.round(DUNGEON_CARD_DROP * 100)}% 확률로 카드 1장</div>
+    <div style="color:var(--dim);font-size:11px">횟수는 전투가 끝날 때(승리·패배·도주) 1회 소모된다</div>`;
   const btn = $('#btn-dungeon-start');
-  btn.textContent = runs > 0 ? '⚔️ 순찰 시작 (입장 1회 소모)' : '오늘 순찰 완료 — 내일 다시 오자';
+  btn.textContent = runs > 0 ? '⚔️ 순찰 시작' : '오늘 순찰 완료 — 내일 다시 오자';
   btn.disabled = runs <= 0;
   btn.onclick = startDungeon;
 }
 
 function startDungeon() {
   if (dungeonRunsLeft() <= 0) return;
-  state.daily.runs -= 1; // 입장 시점 차감 — 패배해도 소모
-  save();
+  // 차감은 전투 종료(승/패/도주) 시점 — 이탈(새로고침)은 미차감·미보상 (FEATURE_SPEC §6.3)
   const foe = DUNGEON_FOES[Math.floor(Math.random() * DUNGEON_FOES.length)];
   startBattle(null, { ...dungeonEnemyStats(state.level), name: foe.name, icon: foe.icon });
 }
@@ -401,7 +430,7 @@ function renderPvp() {
   const rank = state.pvp.rank;
   const champion = rank >= GHOST_LADDER.length;
   $('#pvp-status').innerHTML =
-    `<div>리그 전적: <b class="gold">${rank} / ${GHOST_LADDER.length} 격파</b>${champion ? ' · <span class="rc-legend">🏆 밤의 챔피언</span>' : ''}</div>
+    `<div>리그 전적: <b class="gold">${rank} / ${GHOST_LADDER.length} 격파</b>${champion ? ' · <span class="rc-legend">🏆 밤의 챔피언</span>' : ''} · 🪙 ${state.gold} 골드</div>
      <div style="color:var(--dim);font-size:12px">현재 랭크의 그림자를 쓰러뜨리면 다음 그림자가 나타난다</div>`;
 
   const wrap = $('#pvp-ladder');
@@ -612,6 +641,7 @@ function renderBattle() {
   skillBtn.disabled = battle.skillUsed || battle.over;
   skillBtn.title = skill.desc;
   $('#btn-attack').disabled = battle.over;
+  $('#btn-flee').disabled = battle.over;
 }
 
 function playCard(handIdx) {
@@ -818,6 +848,18 @@ function pvpRound() {
   renderBattle();
 }
 
+// 도주: 패배 취급으로 즉시 종료 (FR-22)
+$('#btn-flee').onclick = () => {
+  if (!battle || battle.over) return;
+  const msg = battle.mode === 'dungeon'
+    ? '도주하면 패배로 처리되고 오늘의 순찰 횟수가 1회 소모됩니다. 도주할까요?'
+    : '도주하면 패배로 처리됩니다. (페널티 없음) 도주할까요?';
+  if (!confirm(msg)) return;
+  battle.fled = true;
+  log('<span class="lg-sys">등을 돌려 어둠 속으로 몸을 뺐다...</span>');
+  endBattle(false);
+};
+
 $('#btn-attack').onclick = () => {
   if (!battle || battle.over) return;
   if (battle.mode === 'pvp') return pvpRound();
@@ -891,6 +933,7 @@ $('#btn-attack').onclick = () => {
   battle.cardPlayed = false;
   // 산차 고갈 무한전 방지: 30라운드 초과 시 강제 도주 (패배 취급, 페널티 없음)
   if (battle.round > 30) {
+    battle.fled = true;
     log('<span class="lg-sys">더 버틸 수 없다. 어둠 속으로 몸을 피했다...</span>');
     renderBattle();
     return endBattle(false);
@@ -910,12 +953,13 @@ function endBattle(won) {
   const isFirstClear = battle.chapterIdx === state.cleared;
 
   if (!won) {
-    log('<span class="lg-bad">쓰러졌다...</span>');
+    if (!battle.fled) log('<span class="lg-bad">쓰러졌다...</span>');
+    const fled = battle.fled;
     setTimeout(() => {
-      $('#result-title').textContent = '패배...';
+      $('#result-title').textContent = fled ? '도주...' : '패배...';
       $('#result-body').innerHTML =
-        `<p>어둠 속에서 간신히 몸을 피했다. 상처를 추스르고 다시 도전하자.</p>
-         <p style="color:var(--dim);font-size:13px">TIP: 카드 뽑기로 더 좋은 장비를 모으거나, 클리어한 챕터를 재도전해 레벨을 올려보자.</p>`;
+        `<p>${fled ? '싸움을 피해 물러났다. 페널티는 없다.' : '어둠 속에서 간신히 몸을 피했다. 상처를 추스르고 다시 도전하자.'}</p>
+         <p style="color:var(--dim);font-size:13px">TIP: 카드 뽑기로 더 좋은 장비를 모으거나, 클리어한 챕터·일일 던전에서 파밍해 레벨을 올려보자.</p>`;
       $('#btn-result-ok').onclick = () => { renderHub(); show('hub'); };
       show('result');
     }, 700);
@@ -943,10 +987,14 @@ function endBattle(won) {
   if (isFirstClear) state.cleared++;
   save();
 
+  const chapterIdx = battle.chapterIdx;
   setTimeout(() => {
     $('#result-title').textContent = '승리!';
     $('#result-body').innerHTML = body;
-    $('#btn-result-ok').onclick = () => startScene(battle.chapterIdx, 'outro');
+    // 재도전 승리는 아웃트로 생략 (FR-23)
+    $('#btn-result-ok').onclick = isFirstClear
+      ? () => startScene(chapterIdx, 'outro')
+      : () => { renderHub(); show('hub'); };
     show('result');
   }, 700);
 }
@@ -959,8 +1007,10 @@ function endPvpBattle(won, isDraw) {
     title = '무승부';
     body = '<p>30라운드가 지나도록 승부가 나지 않았다. 그림자는 어둠 속으로 사라졌다. (보상 없음)</p>';
   } else if (!won) {
-    title = '패배...';
-    body = `<p>${ctx.name} 의 그림자에게 무릎을 꿇었다. 페널티는 없다 — 산차를 다듬고 다시 도전하자.</p>`;
+    title = battle.fled ? '도주...' : '패배...';
+    body = battle.fled
+      ? `<p>${ctx.name} 의 그림자 앞에서 물러났다. 페널티는 없다.</p>`
+      : `<p>${ctx.name} 의 그림자에게 무릎을 꿇었다. 페널티는 없다 — 산차를 다듬고 다시 도전하자.</p>`;
   } else {
     title = '승리!';
     if (ctx.rungIdx !== null && ctx.rungIdx === state.pvp.rank) {
@@ -988,14 +1038,17 @@ function endPvpBattle(won, isDraw) {
   }, 700);
 }
 
-// 던전 정산 (FEATURE_SPEC §6.3)
+// 던전 정산 (FEATURE_SPEC §6.3) — 입장 횟수는 여기서(전투 종료 시) 차감
 function endDungeonBattle(won) {
+  state.daily.runs = Math.max(0, state.daily.runs - 1);
+  save();
   if (!won) {
-    log('<span class="lg-bad">쓰러졌다...</span>');
+    if (!battle.fled) log('<span class="lg-bad">쓰러졌다...</span>');
+    const fled = battle.fled;
     setTimeout(() => {
-      $('#result-title').textContent = '순찰 실패...';
+      $('#result-title').textContent = fled ? '순찰 포기...' : '순찰 실패...';
       $('#result-body').innerHTML =
-        '<p>간신히 골목을 빠져나왔다. 입장 횟수는 소모되었다.</p>';
+        `<p>${fled ? '순찰을 포기하고 골목을 빠져나왔다.' : '간신히 골목을 빠져나왔다.'} 순찰 횟수는 1회 소모되었다.</p>`;
       $('#btn-result-ok').onclick = () => { renderDungeon(); show('dungeon'); };
       show('result');
     }, 700);
@@ -1041,29 +1094,38 @@ function rollRarity() {
 }
 
 function updateGachaButton() {
-  const btn = $('#btn-gacha');
   const left = GACHA_PITY - state.pity;
-  btn.textContent = `🕯️ 초 녹이기 (${GACHA_COST} 골드) — 보유 ${state.gold}G · 전설 확정까지 ${left}회`;
+  const btn = $('#btn-gacha');
+  btn.textContent = `🕯️ 초 녹이기 1회 (${GACHA_COST}G) — 보유 ${state.gold}G · 전설 확정까지 ${left}회`;
   btn.disabled = state.gold < GACHA_COST;
+  const btn10 = $('#btn-gacha10');
+  btn10.textContent = `🕯️ 10연차 (${GACHA_COST * 10}G)`;
+  btn10.disabled = state.gold < GACHA_COST * 10;
 }
 
 function renderGacha() {
   $('#gacha-result').innerHTML = '<p style="color:var(--dim)">초를 골라 밀랍을 녹여보자...</p>';
   updateGachaButton();
   $('#btn-gacha').onclick = doGacha;
+  $('#btn-gacha10').onclick = doGacha10;
 }
 
-function doGacha() {
-  if (state.gold < GACHA_COST) return;
-  state.gold -= GACHA_COST;
-  // 천장: 이번이 GACHA_PITY회째(직전까지 GACHA_PITY-1회 연속 전설 없음)면 전설 확정
+// 1장 뽑기 (비용 처리는 호출자 몫). 천장 카운트는 1회씩 순차 적용
+function drawOnce() {
   const rarity = state.pity >= GACHA_PITY - 1 ? 'legend' : rollRarity();
   state.pity = rarity === 'legend' ? 0 : state.pity + 1;
   const pool = Object.values(CARDS).filter(c => c.rarity === rarity);
   const card = pool[Math.floor(Math.random() * pool.length)];
   state.cards[card.id] = (state.cards[card.id] || 0) + 1;
+  return card;
+}
+
+function doGacha() {
+  if (state.gold < GACHA_COST) return;
+  state.gold -= GACHA_COST;
+  const card = drawOnce();
   save();
-  if (rarity === 'legend') Sound.legend(); else Sound.gacha();
+  if (card.rarity === 'legend') Sound.legend(); else Sound.gacha();
 
   $('#gacha-result').innerHTML = `
     <div class="gacha-card r-${card.rarity}" style="border-color:var(--${card.rarity})">
@@ -1072,6 +1134,23 @@ function doGacha() {
       <div class="g-name">${cardLabel(card.id)}</div>
       <div class="g-desc">${cardDesc(card.id)}</div>
     </div>`;
+  updateGachaButton();
+}
+
+function doGacha10() {
+  const cost = GACHA_COST * 10;
+  if (state.gold < cost) return;
+  state.gold -= cost;
+  const cards = [];
+  for (let i = 0; i < 10; i++) cards.push(drawOnce());
+  save();
+  if (cards.some(c => c.rarity === 'legend')) Sound.legend(); else Sound.gacha();
+
+  $('#gacha-result').innerHTML = `<div class="gacha-grid">${cards.map(card => `
+    <div class="gacha-mini" style="border-color:var(--${card.rarity})">
+      <div class="m-icon">${card.icon}</div>
+      <div class="m-name rc-${card.rarity}">${card.name}</div>
+    </div>`).join('')}</div>`;
   updateGachaButton();
 }
 
@@ -1123,6 +1202,9 @@ function renderDeck() {
   wrap.querySelectorAll('[data-up]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.up;
+      // 산차가 너무 얇아지는 강화는 경고 (FR-26)
+      const totalCards = Object.values(state.cards).reduce((a, b) => a + b, 0);
+      if (totalCards <= 6 && !confirm(`강화로 카드 1장이 소모되어 산차가 ${totalCards - 1}장이 됩니다. 계속할까요?`)) return;
       if (upgradeCard(id)) renderDeck();
     });
   });
