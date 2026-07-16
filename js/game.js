@@ -3,7 +3,8 @@
 
 const SAVE_KEY_V1 = 'mystery-chaser-fan-save-v1';
 const SAVE_KEY_V2 = 'mystery-chaser-fan-save-v2';
-const SAVE_KEY = 'mystery-chaser-fan-save-v3';
+const SAVE_KEY_V3 = 'mystery-chaser-fan-save-v3';
+const SAVE_KEY = 'mystery-chaser-fan-save-v4';
 
 let state = null;   // 영속 상태 (localStorage)
 let battle = null;  // 현재 전투 상태
@@ -45,6 +46,7 @@ function newState(charId) {
     upgrades: {}, // 카드 id → 강화 레벨 (0~UPGRADE_MAX)
     pity: 0,      // 마지막 전설 이후 뽑기 횟수
     daily: freshDaily(), // 일일 던전 { date, runs }
+    pvp: { rank: 0 },    // 격파한 리그 고스트 수 (0~GHOST_LADDER.length)
   };
 }
 
@@ -54,8 +56,9 @@ function save() {
 
 function load() {
   try {
-    // 마이그레이션 체인: v1 → v2(upgrades/pity) → v3(daily) (FEATURE_SPEC §9.2)
+    // 마이그레이션 체인: v1 → v2(upgrades/pity) → v3(daily) → v4(pvp) (FEATURE_SPEC §9.2)
     const raw = localStorage.getItem(SAVE_KEY)
+      || localStorage.getItem(SAVE_KEY_V3)
       || localStorage.getItem(SAVE_KEY_V2)
       || localStorage.getItem(SAVE_KEY_V1);
     if (!raw) return null;
@@ -64,9 +67,11 @@ function load() {
     if (!s.upgrades) s.upgrades = {};
     if (typeof s.pity !== 'number') s.pity = 0;
     if (!s.daily || !s.daily.date) s.daily = freshDaily();
+    if (!s.pvp || typeof s.pvp.rank !== 'number') s.pvp = { rank: 0 };
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
     localStorage.removeItem(SAVE_KEY_V1);
     localStorage.removeItem(SAVE_KEY_V2);
+    localStorage.removeItem(SAVE_KEY_V3);
     return s;
   } catch (e) {
     return null;
@@ -78,11 +83,13 @@ function upLv(cardId) { return (state && state.upgrades[cardId]) || 0; }
 
 function isUpgradable(cardId) { return CARDS[cardId].value < 9999; } // 전체 회복은 강화 불가
 
-function effVal(cardId) {
+function effValWith(cardId, upgrades) {
   const card = CARDS[cardId];
   if (!isUpgradable(cardId)) return card.value;
-  return Math.round(card.value * (1 + 0.25 * upLv(cardId)));
+  return Math.round(card.value * (1 + 0.25 * ((upgrades && upgrades[cardId]) || 0)));
 }
+
+function effVal(cardId) { return effValWith(cardId, state.upgrades); }
 
 function cardLabel(cardId) {
   const lv = upLv(cardId);
@@ -155,6 +162,7 @@ function initTitle() {
   $('#btn-reset').onclick = () => {
     if (confirm('저장된 추적 기록을 모두 삭제할까요?')) {
       localStorage.removeItem(SAVE_KEY);
+      localStorage.removeItem(SAVE_KEY_V3);
       localStorage.removeItem(SAVE_KEY_V2);
       localStorage.removeItem(SAVE_KEY_V1);
       state = null;
@@ -220,8 +228,9 @@ function renderHub() {
   const ps = playerStats();
   const need = expNeeded(state.level);
   const pct = Math.min(100, Math.round(state.exp / need * 100));
+  const champion = state.pvp.rank >= GHOST_LADDER.length ? ' <span class="rc-legend">🏆 밤의 챔피언</span>' : '';
   $('#hub-status').innerHTML = `
-    <div>${c.icon} <b>${c.name}</b> <span style="color:var(--dim)">· ${c.title}</span></div>
+    <div>${c.icon} <b>${c.name}</b> <span style="color:var(--dim)">· ${c.title}</span>${champion}</div>
     <div>Lv.${state.level} &nbsp; HP ${ps.maxHp} · 공격 ${ps.atk} · 방어 ${ps.def} · 민첩 ${ps.agi}</div>
     <div class="gold">🪙 ${state.gold} 골드</div>
     <div style="font-size:11px;color:var(--dim)">EXP ${state.exp} / ${need}</div>
@@ -235,6 +244,14 @@ function renderHub() {
   } else {
     dBtn.disabled = false;
     dBtn.textContent = `🌑 밤거리 순찰 — 오늘 ${dungeonRunsLeft()}회 남음`;
+  }
+  const pBtn = $('#btn-nav-pvp');
+  if (state.cleared < PVP_UNLOCK_CLEARED) {
+    pBtn.disabled = true;
+    pBtn.textContent = `🕯️ 그림자 결투 — 제${PVP_UNLOCK_CLEARED}장 클리어 시 해금`;
+  } else {
+    pBtn.disabled = false;
+    pBtn.textContent = `🕯️ 그림자 결투 — 리그 ${state.pvp.rank} / ${GHOST_LADDER.length} 격파`;
   }
 }
 
@@ -254,6 +271,7 @@ document.querySelectorAll('[data-nav]').forEach(btn => {
     else if (to === 'substory') { renderSubstory(); show('substory'); }
     else if (to === 'switch') { renderCharSelect(true); show('select'); }
     else if (to === 'dungeon') { renderDungeon(); show('dungeon'); }
+    else if (to === 'pvp') { renderPvp(); show('pvp'); }
   });
 });
 
@@ -328,13 +346,155 @@ function startDungeon() {
   startBattle(null, { ...dungeonEnemyStats(state.level), name: foe.name, icon: foe.icon });
 }
 
-// ---------- 전투 ----------
-function buildBattleDeck() {
+// ---------- 그림자 결투 (FEATURE_SPEC §12) ----------
+function collectionToArray() {
   const deck = [];
   for (const [id, n] of Object.entries(state.cards)) {
     for (let i = 0; i < n; i++) deck.push(id);
   }
-  return shuffle(deck);
+  return deck;
+}
+
+function myGhostBuild() {
+  const c = CHARACTERS[state.charId];
+  return {
+    name: `${c.name}의 그림자`,
+    charId: state.charId,
+    level: state.level,
+    deck: collectionToArray(),
+    upgrades: { ...state.upgrades },
+  };
+}
+
+function exportGhostCode() {
+  return GHOST_CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(myGhostBuild()))));
+}
+
+// 검증 실패 시 null — 게임 상태는 불변 (FR-20)
+function importGhostCode(str) {
+  try {
+    str = (str || '').trim();
+    if (!str.startsWith(GHOST_CODE_PREFIX)) return null;
+    const obj = JSON.parse(decodeURIComponent(escape(atob(str.slice(GHOST_CODE_PREFIX.length)))));
+    if (!obj || !CHARACTERS[obj.charId]) return null;
+    if (!Number.isInteger(obj.level) || obj.level < 1 || obj.level > 50) return null;
+    if (!Array.isArray(obj.deck) || obj.deck.length > 200 || obj.deck.some(id => !CARDS[id])) return null;
+    const upgrades = {};
+    if (obj.upgrades && typeof obj.upgrades === 'object') {
+      for (const [k, v] of Object.entries(obj.upgrades)) {
+        if (CARDS[k] && Number.isInteger(v) && v >= 0 && v <= UPGRADE_MAX) upgrades[k] = v;
+      }
+    }
+    return {
+      name: String(obj.name || '이름 없는 그림자').slice(0, 24),
+      charId: obj.charId,
+      level: obj.level,
+      deck: obj.deck.slice(),
+      upgrades,
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function renderPvp() {
+  const rank = state.pvp.rank;
+  const champion = rank >= GHOST_LADDER.length;
+  $('#pvp-status').innerHTML =
+    `<div>리그 전적: <b class="gold">${rank} / ${GHOST_LADDER.length} 격파</b>${champion ? ' · <span class="rc-legend">🏆 밤의 챔피언</span>' : ''}</div>
+     <div style="color:var(--dim);font-size:12px">현재 랭크의 그림자를 쓰러뜨리면 다음 그림자가 나타난다</div>`;
+
+  const wrap = $('#pvp-ladder');
+  wrap.innerHTML = '';
+  GHOST_LADDER.forEach((g, i) => {
+    const c = CHARACTERS[g.charId];
+    const beaten = i < rank;
+    const current = i === rank;
+    const div = document.createElement('div');
+    div.className = 'chapter-item' + (beaten ? ' cleared' : '') + (!beaten && !current ? ' locked' : '');
+    const status = beaten ? '재대결 가능 (보상 없음)'
+      : current ? `도전 가능 · 첫 승리 🪙 ${g.reward}`
+      : '🔒 이전 그림자를 먼저 쓰러뜨려야 한다';
+    div.innerHTML = `
+      <div class="ch-title">#${i + 1} ${c.icon} ${g.name} <span style="color:var(--dim)">Lv.${g.level}</span></div>
+      <div class="ch-sub">${status}</div>`;
+    if (beaten || current) div.onclick = () => startPvpBattle(g, i);
+    wrap.appendChild(div);
+  });
+
+  $('#ghost-code-mine').value = exportGhostCode();
+}
+
+$('#btn-ghost-copy').onclick = async () => {
+  const code = $('#ghost-code-mine').value;
+  try {
+    await navigator.clipboard.writeText(code);
+    $('#btn-ghost-copy').textContent = '📋 복사 완료!';
+  } catch (e) {
+    $('#ghost-code-mine').select();
+    $('#btn-ghost-copy').textContent = '📋 코드를 직접 복사하세요 (선택됨)';
+  }
+  setTimeout(() => { $('#btn-ghost-copy').textContent = '📋 내 고스트 코드 복사'; }, 1500);
+};
+
+$('#btn-ghost-fight').onclick = () => {
+  const build = importGhostCode($('#ghost-code-input').value);
+  if (!build) {
+    alert('유효하지 않은 고스트 코드입니다.');
+    return;
+  }
+  startPvpBattle(build, null);
+};
+
+// ---------- 전투 ----------
+function buildBattleDeck() {
+  return shuffle(collectionToArray());
+}
+
+// 고스트 측 상태 (PvP). HP는 battle.ehp를 공유해 렌더링을 재사용한다
+function makeGhostSide(build) {
+  const c = CHARACTERS[build.charId];
+  const lv = build.level - 1;
+  return {
+    charId: build.charId,
+    ups: build.upgrades || {},
+    base: { maxHp: c.hp + lv * 8, atk: c.atk + lv * 2, def: c.def + lv * 1, agi: c.agi + lv * 1 },
+    atkB: 0, defB: 0, agiB: 0, atkMulTurns: 0, pierceNext: false, lifesteal: false,
+    deck: shuffle(build.deck.slice()), hand: [], skillUsed: false,
+  };
+}
+
+function startPvpBattle(build, rungIdx) {
+  const c = CHARACTERS[build.charId];
+  const ps = playerStats();
+  const ghost = makeGhostSide(build);
+  battle = {
+    mode: 'pvp',
+    chapterIdx: null,
+    pvpCtx: { rungIdx, name: build.name },
+    php: ps.maxHp, pmax: ps.maxHp,
+    base: ps,
+    atkB: 0, defB: 0, agiB: 0,
+    atkMulTurns: 0,
+    enemyAtkMul: 1, enemyDefMul: 1, // 내가 고스트에 건 디버프
+    myAtkMul: 1, myDefMul: 1,       // 고스트가 나에게 건 디버프
+    pierceNext: false,
+    lifesteal: false,
+    ehp: ghost.base.maxHp,
+    enemy: { name: `${build.name} (Lv.${build.level})`, icon: c.icon, hp: ghost.base.maxHp },
+    ghost,
+    deck: buildBattleDeck(),
+    hand: [],
+    skillUsed: false,
+    cardPlayed: false,
+    round: 1,
+    over: false,
+  };
+  $('#battle-log').innerHTML = '';
+  for (let i = 0; i < 3; i++) { drawCard(false); ghostDraw(); }
+  log(`<span class="lg-sys">${c.icon} ${build.name} 의 그림자가 마주 선다. (그림자 결투 — 흑마법 없음)</span>`);
+  renderBattle();
+  show('battle');
 }
 
 // chapterIdx 기반 챕터전, 또는 dungeonEnemy를 넘기면 던전전
@@ -350,6 +510,7 @@ function startBattle(chapterIdx, dungeonEnemy = null) {
     atkMulTurns: 0,               // 특종감각 남은 라운드
     enemyAtkMul: 1,               // 절대영도 적용 시 0.7
     enemyDefMul: 1,               // 파멸의 저주 적용 시 0.5
+    myAtkMul: 1, myDefMul: 1,     // PvP에서 고스트가 거는 디버프 (PvE에선 항상 1)
     pierceNext: false,            // 완전분석: 다음 공격 방어 무시 2배
     lifesteal: false,             // 갈증: 공격 데미지 20% 회복
     ehp: enemy.hp,
@@ -379,7 +540,7 @@ function drawCard(announce = true) {
 
 function pAtk() {
   const mul = battle.atkMulTurns > 0 ? 1.5 : 1;
-  return Math.round((battle.base.atk + battle.atkB) * mul);
+  return Math.round((battle.base.atk + battle.atkB) * mul * battle.myAtkMul);
 }
 function pDef() { return battle.base.def + battle.defB; }
 function pAgi() { return battle.base.agi + battle.agiB; }
@@ -410,7 +571,25 @@ function renderBattle() {
   if (battle.enemyDefMul < 1) buffs.push('적 방어력 -50%');
   if (battle.pierceNext) buffs.push('다음 공격 관통 ×2');
   if (battle.lifesteal) buffs.push('흡혈 20%');
+  if (battle.myAtkMul < 1) buffs.push('❄️ 빙결: 내 공격력 -30%');
+  if (battle.myDefMul < 1) buffs.push('🕸️ 저주: 내 방어력 -50%');
   $('#player-buffs').textContent = buffs.join(' · ');
+
+  // PvP: 고스트의 손패·버프 표시 (FR-21)
+  const eb = $('#enemy-buffs');
+  if (battle.mode === 'pvp') {
+    const g = battle.ghost;
+    const gb = [];
+    if (g.atkB) gb.push(`공격 +${g.atkB}`);
+    if (g.defB) gb.push(`방어 +${g.defB}`);
+    if (g.agiB) gb.push(`민첩 +${g.agiB}`);
+    if (g.atkMulTurns > 0) gb.push(`공격 ×1.5 (${g.atkMulTurns}라운드)`);
+    if (g.pierceNext) gb.push('관통 대기');
+    if (g.lifesteal) gb.push('흡혈 20%');
+    eb.textContent = `손패 ${g.hand.length}장` + (gb.length ? ' · ' + gb.join(' · ') : '');
+  } else {
+    eb.textContent = '';
+  }
 
   // 손패
   const hand = $('#hand');
@@ -491,8 +670,157 @@ function dmgRoll(atk, def) {
   return Math.max(1, Math.round(atk * rand(0.9, 1.1) - def * 0.5));
 }
 
+// ---------- PvP 고스트 행동 ----------
+function ghostDraw() {
+  const g = battle.ghost;
+  if (g.hand.length < 5 && g.deck.length) g.hand.push(g.deck.pop());
+}
+
+function gAtkEff() {
+  const g = battle.ghost;
+  return Math.round((g.base.atk + g.atkB) * (g.atkMulTurns > 0 ? 1.5 : 1) * battle.enemyAtkMul);
+}
+function gDefEff() { const g = battle.ghost; return (g.base.def + g.defB) * battle.enemyDefMul; }
+function gAgiEff() { const g = battle.ghost; return g.base.agi + g.agiB; }
+
+// 고스트 AI: 시뮬레이터와 동일한 정책 (FEATURE_SPEC §12.1)
+function ghostAct() {
+  const g = battle.ghost;
+  const gname = battle.pvpCtx.name;
+  // 카드: HP 45% 미만이면 회복 우선, 아니면 무기 > 방어구 > 장신구
+  let idx = -1;
+  if (battle.ehp < g.base.maxHp * 0.45) idx = g.hand.findIndex(id => CARDS[id].type === 'heal');
+  if (idx < 0) idx = g.hand.findIndex(id => CARDS[id].type === 'weapon');
+  if (idx < 0) idx = g.hand.findIndex(id => CARDS[id].type === 'armor');
+  if (idx < 0) idx = g.hand.findIndex(id => CARDS[id].type === 'charm');
+  if (idx >= 0) {
+    const id = g.hand.splice(idx, 1)[0];
+    const card = CARDS[id];
+    const v = effValWith(id, g.ups);
+    if (card.type === 'weapon') g.atkB += v;
+    else if (card.type === 'armor') g.defB += v;
+    else if (card.type === 'charm') g.agiB += v;
+    else battle.ehp = Math.min(g.base.maxHp, battle.ehp + v);
+    log(`<span class="lg-bad">${gname} 이(가) ${card.icon} ${card.name} 을(를) 사용했다</span>`);
+  }
+  // 스킬: 캐릭터별 고정 타이밍, 전투당 1회
+  if (g.skillUsed) return;
+  const cid = g.charId;
+  const r = battle.round;
+  const trigger =
+    (cid === 'edwin' && r === 1) ||
+    (cid === 'gregor' && battle.ehp < g.base.maxHp * 0.5) ||
+    (cid === 'aria' && r === 2) ||
+    (cid === 'jack' && r === 2) ||
+    (cid === 'violeta' && r === 1) ||
+    (cid === 'margo' && r === 1);
+  if (!trigger) return;
+  g.skillUsed = true;
+  const skillName = CHARACTERS[cid].skill.name;
+  log(`<span class="lg-bad">✨ ${gname} 의 고유 스킬 — ${skillName}!</span>`);
+  if (cid === 'edwin') battle.myAtkMul = 0.7;
+  else if (cid === 'gregor') battle.ehp = Math.min(g.base.maxHp, battle.ehp + Math.round(g.base.maxHp * 0.4));
+  else if (cid === 'aria') { ghostDraw(); ghostDraw(); g.pierceNext = true; }
+  else if (cid === 'jack') g.atkMulTurns = 3;
+  else if (cid === 'violeta') g.lifesteal = true;
+  else if (cid === 'margo') battle.myDefMul = 0.5;
+}
+
+function pvpPlayerHit() {
+  const gname = battle.pvpCtx.name;
+  let dmg;
+  if (battle.pierceNext) {
+    dmg = Math.round(pAtk() * 2); // 필중
+    battle.pierceNext = false;
+    log(`<span class="lg-hit">관통 일격! 방어를 무시하고 ${gname} 에게 ${dmg} 데미지</span>`);
+  } else {
+    const dodge = Math.min(0.3, Math.max(0, (gAgiEff() - pAgi()) * 0.03));
+    if (Math.random() < dodge) {
+      Sound.dodge();
+      log(`<span class="lg-bad">${gname} 이(가) 공격을 회피했다!</span>`);
+      return;
+    }
+    dmg = dmgRoll(pAtk(), gDefEff());
+    log(`<span class="lg-hit">공격! ${gname} 에게 ${dmg} 데미지</span>`);
+  }
+  battle.ehp -= dmg;
+  Sound.hit();
+  if (battle.lifesteal && battle.php > 0) {
+    const heal = Math.round(dmg * 0.2);
+    if (heal > 0) {
+      battle.php = Math.min(battle.pmax, battle.php + heal);
+      log(`<span class="lg-good">🦇 흡혈 — HP ${heal} 회복</span>`);
+    }
+  }
+}
+
+function pvpGhostHit() {
+  const g = battle.ghost;
+  const gname = battle.pvpCtx.name;
+  let dmg;
+  if (g.pierceNext) {
+    dmg = Math.round(gAtkEff() * 2); // 필중
+    g.pierceNext = false;
+    log(`<span class="lg-bad">${gname} 의 관통 일격! 방어를 무시하고 ${dmg} 데미지</span>`);
+  } else {
+    const dodge = Math.min(0.3, Math.max(0, (pAgi() - gAgiEff()) * 0.03));
+    if (Math.random() < dodge) {
+      Sound.dodge();
+      log(`<span class="lg-good">${gname} 의 공격을 회피했다!</span>`);
+      return;
+    }
+    dmg = dmgRoll(gAtkEff(), pDef() * battle.myDefMul);
+    log(`<span class="lg-bad">${gname} 의 공격 — ${dmg} 데미지</span>`);
+  }
+  battle.php -= dmg;
+  Sound.hit();
+  if (g.lifesteal && battle.ehp > 0) {
+    const heal = Math.round(dmg * 0.2);
+    if (heal > 0) {
+      battle.ehp = Math.min(g.base.maxHp, battle.ehp + heal);
+      log(`<span class="lg-bad">🦇 ${gname} 이(가) HP ${heal} 흡혈했다</span>`);
+    }
+  }
+}
+
+function pvpRound() {
+  log(`<span class="lg-sys">— ${battle.round}라운드 —</span>`);
+  ghostAct();
+  const playerFirst = pAgi() >= gAgiEff(); // 동률은 도전자 우선
+  if (playerFirst) {
+    pvpPlayerHit();
+    if (battle.ehp > 0) pvpGhostHit();
+  } else {
+    pvpGhostHit();
+    if (battle.php > 0) pvpPlayerHit();
+  }
+
+  // 동시 사망: 잔여 HP 우위 (덜 깎인 쪽 승리)
+  if (battle.ehp <= 0 || battle.php <= 0) {
+    renderBattle();
+    return endBattle(battle.ehp <= 0 && (battle.php > 0 || battle.php >= battle.ehp));
+  }
+
+  if (battle.atkMulTurns > 0) battle.atkMulTurns--;
+  if (battle.ghost.atkMulTurns > 0) battle.ghost.atkMulTurns--;
+  battle.round++;
+  battle.cardPlayed = false;
+  if (battle.round > 30) {
+    // 무승부 = 패배 취급, 보상 없음 (§12.2)
+    battle.over = true;
+    Sound.lose();
+    log('<span class="lg-sys">그림자가 흩어졌다... 승부를 내지 못했다.</span>');
+    renderBattle();
+    return endPvpBattle(false, true);
+  }
+  drawCard();
+  ghostDraw();
+  renderBattle();
+}
+
 $('#btn-attack').onclick = () => {
   if (!battle || battle.over) return;
+  if (battle.mode === 'pvp') return pvpRound();
   const e = battle.enemy;
   const playerFirst = pAgi() >= e.agi;
   log(`<span class="lg-sys">— ${battle.round}라운드 —</span>`);
@@ -575,6 +903,7 @@ function endBattle(won) {
   battle.over = true;
   renderBattle();
   if (won) Sound.win(); else Sound.lose();
+  if (battle.mode === 'pvp') return endPvpBattle(won, false);
   if (battle.mode === 'dungeon') return endDungeonBattle(won);
 
   const ch = CHAPTERS[battle.chapterIdx];
@@ -618,6 +947,43 @@ function endBattle(won) {
     $('#result-title').textContent = '승리!';
     $('#result-body').innerHTML = body;
     $('#btn-result-ok').onclick = () => startScene(battle.chapterIdx, 'outro');
+    show('result');
+  }, 700);
+}
+
+// 그림자 결투 정산 (FEATURE_SPEC §12.3)
+function endPvpBattle(won, isDraw) {
+  const ctx = battle.pvpCtx;
+  let title, body;
+  if (isDraw) {
+    title = '무승부';
+    body = '<p>30라운드가 지나도록 승부가 나지 않았다. 그림자는 어둠 속으로 사라졌다. (보상 없음)</p>';
+  } else if (!won) {
+    title = '패배...';
+    body = `<p>${ctx.name} 의 그림자에게 무릎을 꿇었다. 페널티는 없다 — 산차를 다듬고 다시 도전하자.</p>`;
+  } else {
+    title = '승리!';
+    if (ctx.rungIdx !== null && ctx.rungIdx === state.pvp.rank) {
+      const reward = GHOST_LADDER[ctx.rungIdx].reward;
+      state.pvp.rank += 1;
+      state.gold += reward;
+      save();
+      body = `<p>${ctx.name} 의 그림자를 쓰러뜨렸다!</p>
+        <p>첫 격파 보상: 🪙 <b class="rc-legend">+${reward}</b> 골드</p>`;
+      if (state.pvp.rank >= GHOST_LADDER.length) {
+        body += '<p class="rc-legend">🏆 리그의 모든 그림자를 쓰러뜨렸다 — 칭호 「밤의 챔피언」 획득!</p>';
+        Sound.legend();
+      }
+    } else if (ctx.rungIdx !== null) {
+      body = `<p>${ctx.name} 의 그림자를 다시 쓰러뜨렸다. (재대결 — 보상 없음)</p>`;
+    } else {
+      body = `<p>${ctx.name} 와(과)의 친선전에서 승리했다! 코드의 주인에게 자랑하자.</p>`;
+    }
+  }
+  setTimeout(() => {
+    $('#result-title').textContent = title;
+    $('#result-body').innerHTML = body;
+    $('#btn-result-ok').onclick = () => { renderPvp(); show('pvp'); };
     show('result');
   }, 700);
 }

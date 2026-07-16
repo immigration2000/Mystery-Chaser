@@ -167,6 +167,20 @@ function dungeonEnemyStats(level) {
 function dungeonReward(level) {
   return { gold: 50 + 14 * level, exp: 25 + 7 * level };
 }
+
+// 그림자 결투 (FEATURE_SPEC §12) — 수치는 tools/pvp-sim.js 로 검증됨
+const PVP_UNLOCK_CLEARED = 2;
+const GHOST_CODE_PREFIX = 'MCG1.';
+const GHOST_STARTER_DECK = ['rusty_dagger', 'rusty_dagger', 'old_coat', 'bandage', 'bandage'];
+const GHOST_LADDER = [
+  { name: '견습 체이서 롬',     charId: 'edwin',   level: 2, deck: [...GHOST_STARTER_DECK], upgrades: {}, reward: 60 },
+  { name: '뒷골목 해결사 피트', charId: 'jack',    level: 2, deck: [...GHOST_STARTER_DECK], upgrades: {}, reward: 80 },
+  { name: '순례자 브람',        charId: 'gregor',  level: 4, deck: [...GHOST_STARTER_DECK, 'hunter_mail', 'holy_water'], upgrades: {}, reward: 100 },
+  { name: '기록보관인 셀레네',  charId: 'aria',    level: 5, deck: [...GHOST_STARTER_DECK, 'silver_knife', 'pocket_watch'], upgrades: {}, reward: 130 },
+  { name: '순찰대장 오스카',    charId: 'edwin',   level: 5, deck: [...GHOST_STARTER_DECK, 'headsman'], upgrades: {}, reward: 160 },
+  { name: '진홍의 밤',          charId: 'violeta', level: 7, deck: [...GHOST_STARTER_DECK, 'headsman', 'abbey_plate', 'holy_water'], upgrades: { headsman: 1 }, reward: 220 },
+  { name: '대마녀의 후계',      charId: 'margo',   level: 9, deck: [...GHOST_STARTER_DECK, 'whisper', 'martyr_relic', 'elixir'], upgrades: { whisper: 1 }, reward: 300 },
+];
 const UPGRADE_MAX = 3;   // 카드 강화 최대 레벨 (+3 = 기본 수치 ×1.75)
 const UPGRADE_COST = { common: 40, rare: 80, hero: 160, legend: 320 };
 

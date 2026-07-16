@@ -33,6 +33,7 @@
   <div class="hub-menu">
     <button class="btn btn-gold btn-block" data-nav="story">📖 스토리 — 사건 추적</button>
     <button id="btn-nav-dungeon" class="btn btn-block" data-nav="dungeon">🌑 밤거리 순찰 — 일일 던전</button>
+    <button id="btn-nav-pvp" class="btn btn-block" data-nav="pvp">🕯️ 그림자 결투 — 고스트 리그</button>
     <button class="btn btn-block" data-nav="gacha">🃏 카드 뽑기</button>
     <button class="btn btn-block" data-nav="deck">🗂️ 카드 보관함</button>
     <button class="btn btn-block" data-nav="switch">👥 체이서 교대</button>
@@ -62,6 +63,7 @@
   <div class="battle-enemy">
     <div id="enemy-info" class="unit-info"></div>
     <div class="hpbar"><div id="enemy-hp" class="hpfill enemy"></div></div>
+    <div id="enemy-buffs" class="buffs enemy-buffs"></div>
   </div>
   <div id="battle-log" class="battle-log"></div>
   <div class="battle-player">
@@ -81,6 +83,21 @@
   <h2 id="result-title" class="screen-title"></h2>
   <div id="result-body" class="scene-text"></div>
   <button id="btn-result-ok" class="btn btn-gold btn-block">확인</button>
+</section>
+
+<!-- 그림자 결투 -->
+<section id="screen-pvp" class="screen">
+  <h2 class="screen-title">🕯️ 그림자 결투</h2>
+  <p class="scene-place">떠도는 체이서들의 그림자(고스트)와 겨루는 비동기 결투<br>고스트도 나처럼 카드와 스킬을 사용한다 — 흑마법은 없다</p>
+  <div id="pvp-status" class="hub-status"></div>
+  <div id="pvp-ladder"></div>
+  <h3 class="pvp-sub">친선전 — 고스트 코드</h3>
+  <p class="scene-place">내 코드를 친구에게 보내고, 친구의 코드와 겨뤄보자 (보상 없음)</p>
+  <input id="ghost-code-mine" class="ghost-input" readonly title="내 고스트 코드">
+  <button id="btn-ghost-copy" class="btn btn-block">📋 내 고스트 코드 복사</button>
+  <input id="ghost-code-input" class="ghost-input" placeholder="상대의 고스트 코드 붙여넣기">
+  <button id="btn-ghost-fight" class="btn btn-gold btn-block">⚔️ 코드로 대결</button>
+  <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
 </section>
 
 <!-- 일일 던전 -->

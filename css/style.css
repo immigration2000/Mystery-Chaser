@@ -172,6 +172,16 @@ body {
 .c-count { font-size: 10px; color: var(--gold); margin-top: 3px; }
 
 .card.unowned { opacity: .35; border-style: dashed; }
+
+/* 그림자 결투 */
+.pvp-sub { color: var(--gold); font-size: 15px; letter-spacing: 2px; margin: 22px 0 6px; text-align: center; }
+.ghost-input {
+  display: block; width: 100%; margin: 6px 0; padding: 9px 10px;
+  background: #0a080d; color: var(--dim); border: 1px solid #3a3145; border-radius: 4px;
+  font-family: monospace; font-size: 11px;
+}
+.ghost-input:focus { outline: none; border-color: var(--gold); color: var(--ink); }
+.enemy-buffs { color: #d98a94; }
 .deck-progress { text-align: center; font-size: 13px; color: var(--gold); margin-bottom: 12px; }
 .btn-up {
   display: block; width: 100%; margin-top: 6px; padding: 5px 2px;
