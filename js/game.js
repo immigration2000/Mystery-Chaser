@@ -209,7 +209,8 @@ function startBattle(chapterIdx) {
     base: ps,
     atkB: 0, defB: 0, agiB: 0,   // 카드 지속 버프
     atkMulTurns: 0,               // 특종감각 남은 라운드
-    enemyAtkMul: 1,               // 절대영도 적용 시 0.6
+    enemyAtkMul: 1,               // 절대영도 적용 시 0.7
+    pierceNext: false,            // 완전분석: 다음 공격 방어 무시 2배
     ehp: ch.enemy.hp,
     enemy: ch.enemy,
     deck: buildBattleDeck(),
@@ -264,7 +265,8 @@ function renderBattle() {
   if (battle.defB) buffs.push(`방어 +${battle.defB}`);
   if (battle.agiB) buffs.push(`민첩 +${battle.agiB}`);
   if (battle.atkMulTurns > 0) buffs.push(`특종감각 ×1.5 (${battle.atkMulTurns}라운드)`);
-  if (battle.enemyAtkMul < 1) buffs.push('적 공격력 -40%');
+  if (battle.enemyAtkMul < 1) buffs.push('적 공격력 -30%');
+  if (battle.pierceNext) buffs.push('다음 공격 관통 ×2');
   $('#player-buffs').textContent = buffs.join(' · ');
 
   // 손패
@@ -315,18 +317,19 @@ $('#btn-skill').onclick = () => {
   const skill = CHARACTERS[cid].skill;
   log(`<span class="lg-sys">✨ 고유 스킬 발동 — ${skill.name}!</span>`);
   if (cid === 'edwin') {
-    battle.enemyAtkMul = 0.6;
-    log('<span class="lg-good">적의 무기에 서리가 앉는다. 적 공격력 40% 감소!</span>');
+    battle.enemyAtkMul = 0.7;
+    log('<span class="lg-good">적의 무기에 서리가 앉는다. 적 공격력 30% 감소!</span>');
   } else if (cid === 'gregor') {
     const heal = Math.round(battle.pmax * 0.4);
     battle.php = Math.min(battle.pmax, battle.php + heal);
     log(`<span class="lg-good">광기 어린 기도가 상처를 봉한다. HP ${heal} 회복!</span>`);
   } else if (cid === 'aria') {
     drawCard(); drawCard();
-    log('<span class="lg-good">전황을 완전분석했다.</span>');
+    battle.pierceNext = true;
+    log('<span class="lg-good">약점을 간파했다. 다음 공격은 방어를 무시하는 2배 데미지!</span>');
   } else if (cid === 'jack') {
-    battle.atkMulTurns = 2;
-    log('<span class="lg-good">특종의 냄새가 난다! 2라운드 동안 공격력 ×1.5!</span>');
+    battle.atkMulTurns = 3;
+    log('<span class="lg-good">특종의 냄새가 난다! 3라운드 동안 공격력 ×1.5!</span>');
   }
   renderBattle();
 };
@@ -342,18 +345,30 @@ $('#btn-attack').onclick = () => {
   log(`<span class="lg-sys">— ${battle.round}라운드 —</span>`);
 
   const doPlayerHit = () => {
-    const dmg = dmgRoll(pAtk(), e.def);
+    let dmg;
+    if (battle.pierceNext) {
+      dmg = Math.round(pAtk() * 2);
+      battle.pierceNext = false;
+      log(`<span class="lg-hit">관통 일격! 방어를 무시하고 ${e.name}에게 ${dmg} 데미지</span>`);
+    } else {
+      dmg = dmgRoll(pAtk(), e.def);
+      log(`<span class="lg-hit">공격! ${e.name}에게 ${dmg} 데미지</span>`);
+    }
     battle.ehp -= dmg;
-    log(`<span class="lg-hit">공격! ${e.name}에게 ${dmg} 데미지</span>`);
   };
   const doEnemyHit = () => {
-    const dark = battle.round % 3 === 0;
+    const dark = battle.round % 4 === 0;
     let atk = e.atk * battle.enemyAtkMul;
     let dmg;
     if (dark) {
       dmg = Math.max(1, Math.round(atk * 1.3));
       log(`<span class="lg-bad">${e.icon} 흑마법! 방어를 무시하고 ${dmg} 데미지</span>`);
     } else {
+      const dodge = Math.min(0.3, Math.max(0, (pAgi() - e.agi) * 0.03));
+      if (Math.random() < dodge) {
+        log(`<span class="lg-good">${e.name}의 공격을 회피했다!</span>`);
+        return;
+      }
       dmg = dmgRoll(atk, pDef());
       log(`<span class="lg-bad">${e.name}의 공격 — ${dmg} 데미지</span>`);
     }
@@ -375,6 +390,12 @@ $('#btn-attack').onclick = () => {
   if (battle.atkMulTurns > 0) battle.atkMulTurns--;
   battle.round++;
   battle.cardPlayed = false;
+  // 산차 고갈 무한전 방지: 30라운드 초과 시 강제 도주 (패배 취급, 페널티 없음)
+  if (battle.round > 30) {
+    log('<span class="lg-sys">더 버틸 수 없다. 어둠 속으로 몸을 피했다...</span>');
+    renderBattle();
+    return endBattle(false);
+  }
   drawCard();
   renderBattle();
 };

@@ -10,7 +10,7 @@ const CHARACTERS = {
     hp: 90, atk: 12, def: 6, agi: 8,
     skill: {
       name: '절대영도',
-      desc: '적의 공격력을 40% 감소시킨다. (전투당 1회)',
+      desc: '적의 공격력을 30% 감소시킨다. (전투당 1회, 전투 종료까지 지속)',
     },
     substory: [
       '프로스트 가문의 장남 에드윈은 태어날 때부터 만지는 것을 얼리는 저주를 지녔다.',
@@ -41,10 +41,10 @@ const CHARACTERS = {
     name: '아리아 벨',
     title: '천재소녀',
     icon: '🔍',
-    hp: 80, atk: 9, def: 5, agi: 10,
+    hp: 85, atk: 9, def: 5, agi: 10,
     skill: {
       name: '완전분석',
-      desc: '카드를 2장 즉시 드로우한다. (전투당 1회)',
+      desc: '카드 2장을 드로우하고, 다음 공격이 방어를 무시하는 2배 데미지가 된다. (전투당 1회)',
     },
     substory: [
       '열네 살에 왕립학회 논문을 반박한 소녀, 아리아 벨. 그녀의 스승은 도시 최고의 의학자였다.',
@@ -61,7 +61,7 @@ const CHARACTERS = {
     hp: 85, atk: 11, def: 5, agi: 12,
     skill: {
       name: '특종감각',
-      desc: '2라운드 동안 공격력이 50% 증가한다. (전투당 1회)',
+      desc: '3라운드 동안 공격력이 50% 증가한다. (전투당 1회)',
     },
     substory: [
       '그레이헤이븐 가제트의 사회부 기자 잭 하퍼. 실종 사건 기사를 쓸 때마다 데스크에서 기사가 잘려나갔다.',
@@ -118,7 +118,7 @@ const CHAPTERS = [
       '쓰러진 노동자의 소매에서 검은 밀랍 조각이 떨어졌다. 밀랍에는 촛대 문장이 찍혀 있다.',
       '아무래도 이 도시의 광기에는 주인이 있는 모양이다. 단서는 폐쇄된 예배당을 가리킨다.',
     ],
-    enemy: { name: '광인이 된 부두 노동자', icon: '🪝', hp: 80, atk: 9, def: 3, agi: 6 },
+    enemy: { name: '광인이 된 부두 노동자', icon: '🪝', hp: 90, atk: 10, def: 3, agi: 6 },
     reward: { exp: 60, gold: 100, card: 'silver_knife' },
   },
   {
@@ -133,7 +133,7 @@ const CHAPTERS = [
       '수도사의 품에서 나온 장부에는 "실험체 후보" 명단이 빼곡했다. 전부 실종자들의 이름이다.',
       '명단의 발송지는 옛 교도소 지하 — 20년 전 폐쇄된 곳이다.',
     ],
-    enemy: { name: '검은 촛불의 수도사', icon: '🕯️', hp: 100, atk: 11, def: 5, agi: 8 },
+    enemy: { name: '검은 촛불의 수도사', icon: '🕯️', hp: 130, atk: 13, def: 5, agi: 9 },
     reward: { exp: 80, gold: 120, card: 'hunter_mail' },
   },
   {
@@ -148,7 +148,7 @@ const CHAPTERS = [
       '실험체 9호는 마지막 순간, 사람의 눈으로 돌아와 한 곳을 가리켰다 — 공동묘지의 오래된 마녀의 비석.',
       '기록에 따르면 이 실험은 "그분"의 주문 설계를 마녀에게서 받아왔다고 한다.',
     ],
-    enemy: { name: '실험체 9호', icon: '⛓️', hp: 140, atk: 13, def: 7, agi: 5 },
+    enemy: { name: '실험체 9호', icon: '⛓️', hp: 180, atk: 16, def: 8, agi: 5 },
     reward: { exp: 110, gold: 150, card: 'headsman' },
   },
   {
@@ -163,7 +163,7 @@ const CHAPTERS = [
       '흩어지는 그림자가 마지막으로 속삭였다. "대성당 첨탑. 발타자르. 촛불이 전부 켜지기 전에."',
       '도시의 모든 종이 일제히 울리기 시작했다. 초대장인 셈이다.',
     ],
-    enemy: { name: '마녀 헤카테의 그림자', icon: '🌙', hp: 160, atk: 16, def: 8, agi: 11 },
+    enemy: { name: '마녀 헤카테의 그림자', icon: '🌙', hp: 210, atk: 18, def: 9, agi: 12 },
     reward: { exp: 150, gold: 180, card: 'shadow_cloak' },
   },
   {
@@ -180,7 +180,7 @@ const CHAPTERS = [
       '그러나 발타자르의 시신은 끝내 발견되지 않았다. 밀랍 한 줌만이 첨탑 바닥에 남아 있었다.',
       '— 1부 끝. 체이서의 추적은 계속된다. —',
     ],
-    enemy: { name: '주교 발타자르', icon: '🕯️', hp: 220, atk: 19, def: 10, agi: 10 },
+    enemy: { name: '주교 발타자르', icon: '🕯️', hp: 280, atk: 21, def: 11, agi: 11 },
     reward: { exp: 220, gold: 300, card: 'whisper' },
   },
 ];

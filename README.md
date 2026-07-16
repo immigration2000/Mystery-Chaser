@@ -30,7 +30,9 @@ python3 -m http.server 8000
 
 ## 문서
 
-- [게임 기획 문서 (GDD)](docs/GDD.md) — 원작 조사 내용과 상세 설계
+- **[기능 기획서 (FEATURE_SPEC)](docs/FEATURE_SPEC.md)** — 규칙·수치·데이터의 단일 기준. 전투/카드/경제 시스템 명세와 시뮬레이션 기반 밸런스 검증
+- [게임 기획 문서 (GDD)](docs/GDD.md) — 원작 조사 내용, 세계관·콘셉트 개요
+- `tools/balance-sim.js` — 밸런스 시뮬레이터 (`node tools/balance-sim.js`)
 
 ## 라이선스 / 고지
 
