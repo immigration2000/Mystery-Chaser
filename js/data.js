@@ -1,12 +1,14 @@
 // 미스테리 체이서: 검은 촛불 — 게임 데이터
 // 원작(2013 미스테리 체이서)의 시스템을 재해석한 오리지널 콘텐츠
 
+// unlockAfter: 해금에 필요한 클리어 챕터 수 (0 = 기본 제공). 해금 상태는 저장하지 않고 cleared에서 파생
 const CHARACTERS = {
   edwin: {
     id: 'edwin',
     name: '에드윈 프로스트',
     title: '얼음의 귀공자',
     icon: '❄️',
+    unlockAfter: 0,
     hp: 90, atk: 12, def: 6, agi: 8,
     skill: {
       name: '절대영도',
@@ -24,6 +26,7 @@ const CHARACTERS = {
     name: '그레고르 신부',
     title: '광기의 사제',
     icon: '✝️',
+    unlockAfter: 0,
     hp: 110, atk: 10, def: 8, agi: 6,
     skill: {
       name: '광신의 기도',
@@ -41,6 +44,7 @@ const CHARACTERS = {
     name: '아리아 벨',
     title: '천재소녀',
     icon: '🔍',
+    unlockAfter: 0,
     hp: 85, atk: 9, def: 5, agi: 10,
     skill: {
       name: '완전분석',
@@ -58,6 +62,7 @@ const CHARACTERS = {
     name: '잭 하퍼',
     title: '열혈기자',
     icon: '📰',
+    unlockAfter: 0,
     hp: 85, atk: 11, def: 5, agi: 12,
     skill: {
       name: '특종감각',
@@ -68,6 +73,42 @@ const CHARACTERS = {
       '어느 밤, 그의 하숙방에 검은 초 한 자루와 쪽지가 놓여 있었다. "다음 기사는 네 부고다."',
       '잭은 그 초를 창밖으로 던져버리고 타자기 앞에 앉았다.',
       '"협박장을 보냈다는 건 기사가 정답이라는 뜻이지. 1면감이다."',
+    ],
+  },
+  violeta: {
+    id: 'violeta',
+    name: '비올레타',
+    title: '심야의 후원자',
+    icon: '🦇',
+    unlockAfter: 3,
+    hp: 95, atk: 11, def: 6, agi: 9,
+    skill: {
+      name: '갈증',
+      desc: '이번 전투 동안 공격으로 입힌 데미지의 20%만큼 HP를 회복한다. (전투당 1회)',
+    },
+    substory: [
+      '그레이헤이븐의 밤을 이백 년째 지켜본 여인, 비올레타. 그녀는 스스로를 "이 도시의 오래된 세입자"라고 부른다.',
+      '검은 촛불이 도시의 피를 흐리게 만들자, 그녀의 밤도 탁해졌다. 미친 피는 마실 수 없다.',
+      '체이서들의 실험실 습격을 지붕 위에서 지켜본 밤, 그녀는 백 년 만에 처음으로 남을 돕기로 했다.',
+      '"오해하지 마. 너희가 좋아서가 아니라, 내 식탁을 어지럽힌 자들이 미워서야."',
+    ],
+  },
+  margo: {
+    id: 'margo',
+    name: '마고',
+    title: '파문당한 견습 마녀',
+    icon: '🕸️',
+    unlockAfter: 5,
+    hp: 78, atk: 13, def: 4, agi: 9,
+    skill: {
+      name: '파멸의 저주',
+      desc: '적의 방어력을 50% 감소시킨다. (전투당 1회, 전투 종료까지 지속)',
+    },
+    substory: [
+      '마고는 마녀 헤카테의 마지막 제자였다 — 스승의 주문서를 훔쳐 달아나기 전까지는.',
+      '"주교가 스승님의 술식을 손에 넣었다면, 그건 절반은 내 잘못이다." 그녀가 판 주문서가 돌고 돌아 검은 촛불에 닿았으니까.',
+      '첨탑이 무너진 뒤, 그녀는 잿더미에서 스승의 그림자가 남긴 마지막 저주를 주웠다.',
+      '"빚은 갚는다. 저주로 진 빚은, 저주로."',
     ],
   },
 };
@@ -104,6 +145,28 @@ const STARTING_CARDS = { rusty_dagger: 2, old_coat: 1, bandage: 2 };
 
 const GACHA_COST = 80;
 const GACHA_PITY = 30;   // 전설 미획득 뽑기가 30회째면 전설 확정
+
+// 일일 던전 「밤거리 순찰」 (FEATURE_SPEC §6.3)
+const DUNGEON_RUNS_PER_DAY = 3;
+const DUNGEON_CARD_DROP = 0.15; // 일반·희귀 풀에서 1장
+const DUNGEON_FOES = [
+  { name: '취한 눈의 강도', icon: '🔪' },
+  { name: '들개 무리', icon: '🐕' },
+  { name: '묘지기의 그림자', icon: '⚰️' },
+  { name: '광기 어린 부랑자', icon: '🎩' },
+  { name: '검은 초를 든 신도', icon: '🕯️' },
+];
+function dungeonEnemyStats(level) {
+  return {
+    hp: 60 + 18 * level,
+    atk: Math.round(8 + 2.4 * level),
+    def: 2 + level,
+    agi: Math.round(5 + 1.2 * level),
+  };
+}
+function dungeonReward(level) {
+  return { gold: 50 + 14 * level, exp: 25 + 7 * level };
+}
 const UPGRADE_MAX = 3;   // 카드 강화 최대 레벨 (+3 = 기본 수치 ×1.75)
 const UPGRADE_COST = { common: 40, rare: 80, hero: 160, legend: 320 };
 

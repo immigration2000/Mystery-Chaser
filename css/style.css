@@ -71,6 +71,13 @@ body {
   padding: 14px; margin-bottom: 12px; cursor: pointer; transition: border-color .15s;
 }
 .char-card:hover { border-color: var(--gold); }
+.char-card.locked { opacity: .4; cursor: default; border-style: dashed; }
+.char-card.locked:hover { border-color: #3a3145; }
+.char-card.active-char { border-color: var(--gold); }
+.char-active-badge {
+  font-size: 10px; color: var(--bg); background: var(--gold);
+  border-radius: 3px; padding: 1px 6px; vertical-align: middle; margin-left: 4px;
+}
 .char-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .char-icon { font-size: 30px; }
 .char-name { font-size: 17px; color: var(--gold); }

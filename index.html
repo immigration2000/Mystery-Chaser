@@ -22,8 +22,9 @@
 
 <!-- 캐릭터 선택 -->
 <section id="screen-select" class="screen">
-  <h2 class="screen-title">체이서를 선택하라</h2>
+  <h2 id="select-title" class="screen-title">체이서를 선택하라</h2>
   <div id="char-list" class="char-list"></div>
+  <button id="btn-select-back" class="btn btn-dim btn-block" style="display:none">돌아가기</button>
 </section>
 
 <!-- 허브 -->
@@ -31,9 +32,12 @@
   <header id="hub-status" class="hub-status"></header>
   <div class="hub-menu">
     <button class="btn btn-gold btn-block" data-nav="story">📖 스토리 — 사건 추적</button>
+    <button id="btn-nav-dungeon" class="btn btn-block" data-nav="dungeon">🌑 밤거리 순찰 — 일일 던전</button>
     <button class="btn btn-block" data-nav="gacha">🃏 카드 뽑기</button>
     <button class="btn btn-block" data-nav="deck">🗂️ 카드 보관함</button>
+    <button class="btn btn-block" data-nav="switch">👥 체이서 교대</button>
     <button class="btn btn-block" data-nav="substory">📜 나의 사연</button>
+    <button id="btn-sound" class="btn btn-dim btn-block"></button>
     <button class="btn btn-dim btn-block" data-nav="title">타이틀로</button>
   </div>
 </section>
@@ -79,6 +83,15 @@
   <button id="btn-result-ok" class="btn btn-gold btn-block">확인</button>
 </section>
 
+<!-- 일일 던전 -->
+<section id="screen-dungeon" class="screen">
+  <h2 class="screen-title">🌑 밤거리 순찰</h2>
+  <p class="scene-place">해가 지면 그레이헤이븐의 골목은 순찰자의 것이다<br>매일 세 번, 밤거리의 위협을 정리하고 보수를 챙기자</p>
+  <div id="dungeon-info" class="hub-status"></div>
+  <button id="btn-dungeon-start" class="btn btn-gold btn-block"></button>
+  <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
+</section>
+
 <!-- 카드 뽑기 -->
 <section id="screen-gacha" class="screen">
   <h2 class="screen-title">🕯️ 밀랍 상인의 좌판</h2>
@@ -105,6 +118,7 @@
 </section>
 
 <script src="js/data.js"></script>
+<script src="js/sound.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

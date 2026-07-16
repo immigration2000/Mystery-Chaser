@@ -9,6 +9,8 @@ const CHARACTERS = {
   gregor: { hp: 110, atk: 10, def: 8, agi: 6,  skill: 'heal40' },
   aria:   { hp: 85,  atk: 9,  def: 5, agi: 10, skill: 'draw2' },
   jack:   { hp: 85,  atk: 11, def: 5, agi: 12, skill: 'atkMul2t' },
+  violeta:{ hp: 95,  atk: 11, def: 6, agi: 9,  skill: 'lifesteal' },
+  margo:  { hp: 78,  atk: 13, def: 4, agi: 9,  skill: 'defCurse' },
 };
 
 const CARDS = {
@@ -50,7 +52,7 @@ function simulate(charKey, chapterIdx) {
 
   let php = base.maxHp, ehp = e.hp;
   let atkB = 0, defB = 0, agiB = 0, atkMulTurns = 0, enemyAtkMul = 1;
-  let skillUsed = false; let pierceNext = false;
+  let skillUsed = false; let pierceNext = false; let lifesteal = false; let enemyDefMul = 1;
   const deck = shuffle(deckFor(chapterIdx).slice());
   const hand = [];
   const draw = () => { if (hand.length < 5 && deck.length) hand.push(deck.pop()); };
@@ -77,6 +79,8 @@ function simulate(charKey, chapterIdx) {
       else if (c.skill === 'heal40' && php < base.maxHp * 0.5) { php = Math.min(base.maxHp, php + Math.round(base.maxHp * 0.4)); skillUsed = true; }
       else if (c.skill === 'draw2' && round === 2) { draw(); draw(); pierceNext = true; skillUsed = true; }
       else if (c.skill === 'atkMul2t' && round === 2) { atkMulTurns = 3; skillUsed = true; }
+      else if (c.skill === 'lifesteal' && round === 1) { lifesteal = true; skillUsed = true; }
+      else if (c.skill === 'defCurse' && round === 1) { enemyDefMul = 0.5; skillUsed = true; }
     }
 
     const pAtk = Math.round((base.atk + atkB) * (atkMulTurns > 0 ? 1.5 : 1));
@@ -87,7 +91,9 @@ function simulate(charKey, chapterIdx) {
       if (pierceNext) { ehp -= Math.round(pAtk * 2); pierceNext = false; return; } // 관통은 필중
       const dodge = Math.min(0.3, Math.max(0, (e.agi - pAgi) * 0.03));
       if (Math.random() < dodge) return;
-      ehp -= dmgRoll(pAtk, e.def);
+      const dmg = dmgRoll(pAtk, e.def * enemyDefMul);
+      ehp -= dmg;
+      if (lifesteal) php = Math.min(base.maxHp, php + Math.round(dmg * 0.2));
     };
     const enemyHit = () => {
       const a = e.atk * enemyAtkMul;
@@ -121,6 +127,37 @@ for (const charKey of Object.keys(CHARACTERS)) {
     const avgR = wins ? (roundSum / wins).toFixed(1) : '-';
     const avgHp = wins ? (hpSum / wins * 100).toFixed(0) : '-';
     row.push(`${wr}% ${avgR}R ${avgHp}%hp`);
+  }
+  console.log(row.join('\t'));
+}
+
+
+// ---- 일일 던전: 레벨 스케일링 적 (파밍 콘텐츠, 목표 승률 >= 90%) ----
+function dungeonEnemy(lv) {
+  return { hp: 60 + 18 * lv, atk: Math.round(8 + 2.4 * lv), def: 2 + lv, agi: Math.round(5 + 1.2 * lv) };
+}
+
+// simulate()의 챕터 0 슬롯을 임시로 던전 적으로 바꿔 재사용.
+// 산차는 시작 카드 5장만 사용 — 실플레이보다 보수적인(약한) 가정.
+function simulateDungeon(charKey, lv) {
+  const saveEnemy = CHAPTERS[0].enemy;
+  const saveLv = LEVEL_AT[0];
+  CHAPTERS[0] = { enemy: dungeonEnemy(lv), rewardCard: CHAPTERS[0].rewardCard };
+  LEVEL_AT[0] = lv;
+  const r = simulate(charKey, 0);
+  CHAPTERS[0] = { enemy: saveEnemy, rewardCard: CHAPTERS[0].rewardCard };
+  LEVEL_AT[0] = saveLv;
+  return r;
+}
+
+console.log('\n일일 던전 (레벨 스케일링 적) 승률:');
+console.log('char\t' + [1,2,3,4,5,6].map(l => 'Lv' + l).join('\t'));
+for (const charKey of Object.keys(CHARACTERS)) {
+  const row = [charKey];
+  for (const lv of [1,2,3,4,5,6]) {
+    let wins = 0, hpSum = 0;
+    for (let i = 0; i < N; i++) { const r = simulateDungeon(charKey, lv); if (r.win) { wins++; hpSum += r.hpLeft; } }
+    row.push((wins / N * 100).toFixed(0) + '% ' + (wins ? (hpSum / wins * 100).toFixed(0) : '-') + 'hp');
   }
   console.log(row.join('\t'));
 }
