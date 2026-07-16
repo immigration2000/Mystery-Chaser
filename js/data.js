@@ -103,6 +103,9 @@ const CARDS = {
 const STARTING_CARDS = { rusty_dagger: 2, old_coat: 1, bandage: 2 };
 
 const GACHA_COST = 80;
+const GACHA_PITY = 30;   // 전설 미획득 뽑기가 30회째면 전설 확정
+const UPGRADE_MAX = 3;   // 카드 강화 최대 레벨 (+3 = 기본 수치 ×1.75)
+const UPGRADE_COST = { common: 40, rare: 80, hero: 160, legend: 320 };
 
 const CHAPTERS = [
   {

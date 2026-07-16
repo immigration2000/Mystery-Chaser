@@ -1,7 +1,8 @@
 // 미스테리 체이서: 검은 촛불 — 게임 로직
 'use strict';
 
-const SAVE_KEY = 'mystery-chaser-fan-save-v1';
+const SAVE_KEY_V1 = 'mystery-chaser-fan-save-v1';
+const SAVE_KEY = 'mystery-chaser-fan-save-v2';
 
 let state = null;   // 영속 상태 (localStorage)
 let battle = null;  // 현재 전투 상태
@@ -33,6 +34,8 @@ function newState(charId) {
     gold: 120,
     cards: { ...STARTING_CARDS },
     cleared: 0, // 클리어한 챕터 수 (다음 도전 가능 챕터 인덱스)
+    upgrades: {}, // 카드 id → 강화 레벨 (0~UPGRADE_MAX)
+    pity: 0,      // 마지막 전설 이후 뽑기 횟수
   };
 }
 
@@ -42,14 +45,67 @@ function save() {
 
 function load() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return null;
+    let raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) {
+      // v1 → v2 마이그레이션 (FEATURE_SPEC §9.2)
+      const v1 = localStorage.getItem(SAVE_KEY_V1);
+      if (!v1) return null;
+      const old = JSON.parse(v1);
+      if (!old || !CHARACTERS[old.charId]) return null;
+      const migrated = { upgrades: {}, pity: 0, ...old };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(migrated));
+      localStorage.removeItem(SAVE_KEY_V1);
+      return migrated;
+    }
     const s = JSON.parse(raw);
     if (!s || !CHARACTERS[s.charId]) return null;
+    if (!s.upgrades) s.upgrades = {};
+    if (typeof s.pity !== 'number') s.pity = 0;
     return s;
   } catch (e) {
     return null;
   }
+}
+
+// ---------- 카드 강화 (FEATURE_SPEC §4.4) ----------
+function upLv(cardId) { return (state && state.upgrades[cardId]) || 0; }
+
+function isUpgradable(cardId) { return CARDS[cardId].value < 9999; } // 전체 회복은 강화 불가
+
+function effVal(cardId) {
+  const card = CARDS[cardId];
+  if (!isUpgradable(cardId)) return card.value;
+  return Math.round(card.value * (1 + 0.25 * upLv(cardId)));
+}
+
+function cardLabel(cardId) {
+  const lv = upLv(cardId);
+  return CARDS[cardId].name + (lv > 0 ? ` +${lv}` : '');
+}
+
+function cardDesc(cardId) {
+  const card = CARDS[cardId];
+  const v = effVal(cardId);
+  if (card.type === 'weapon') return `이번 전투 동안 공격력 +${v}`;
+  if (card.type === 'armor') return `이번 전투 동안 방어력 +${v}`;
+  if (card.type === 'charm') return `이번 전투 동안 민첩 +${v}`;
+  return v >= 9999 ? 'HP를 전부 회복' : `HP를 ${v} 회복`;
+}
+
+function canUpgrade(cardId) {
+  return isUpgradable(cardId)
+    && upLv(cardId) < UPGRADE_MAX
+    && (state.cards[cardId] || 0) >= 2
+    && state.gold >= UPGRADE_COST[CARDS[cardId].rarity];
+}
+
+function upgradeCard(cardId) {
+  if (!canUpgrade(cardId)) return false;
+  state.cards[cardId] -= 1;                 // 사본 1장 소비
+  state.gold -= UPGRADE_COST[CARDS[cardId].rarity];
+  state.upgrades[cardId] = upLv(cardId) + 1;
+  save();
+  return true;
 }
 
 // ---------- 능력치 ----------
@@ -93,6 +149,7 @@ function initTitle() {
   $('#btn-reset').onclick = () => {
     if (confirm('저장된 추적 기록을 모두 삭제할까요?')) {
       localStorage.removeItem(SAVE_KEY);
+      localStorage.removeItem(SAVE_KEY_V1);
       state = null;
       alert('기록이 삭제되었습니다.');
     }
@@ -278,8 +335,8 @@ function renderBattle() {
     div.className = `card r-${card.rarity}` + (battle.cardPlayed || battle.over ? ' disabled' : '');
     div.innerHTML = `
       <div class="c-icon">${card.icon}</div>
-      <div class="c-name">${card.name}</div>
-      <div class="c-desc">${card.desc}</div>`;
+      <div class="c-name">${cardLabel(id)}</div>
+      <div class="c-desc">${cardDesc(id)}</div>`;
     if (!battle.cardPlayed && !battle.over) div.onclick = () => playCard(idx);
     hand.appendChild(div);
   });
@@ -296,16 +353,18 @@ function playCard(handIdx) {
   if (battle.cardPlayed || battle.over) return;
   const id = battle.hand[handIdx];
   const card = CARDS[id];
+  const v = effVal(id);
+  const name = cardLabel(id);
   battle.hand.splice(handIdx, 1);
   battle.cardPlayed = true;
 
-  if (card.type === 'weapon') { battle.atkB += card.value; log(`<span class="lg-good">${card.icon} ${card.name} 장착 — 공격력 +${card.value}</span>`); }
-  else if (card.type === 'armor') { battle.defB += card.value; log(`<span class="lg-good">${card.icon} ${card.name} 장착 — 방어력 +${card.value}</span>`); }
-  else if (card.type === 'charm') { battle.agiB += card.value; log(`<span class="lg-good">${card.icon} ${card.name} 사용 — 민첩 +${card.value}</span>`); }
+  if (card.type === 'weapon') { battle.atkB += v; log(`<span class="lg-good">${card.icon} ${name} 장착 — 공격력 +${v}</span>`); }
+  else if (card.type === 'armor') { battle.defB += v; log(`<span class="lg-good">${card.icon} ${name} 장착 — 방어력 +${v}</span>`); }
+  else if (card.type === 'charm') { battle.agiB += v; log(`<span class="lg-good">${card.icon} ${name} 사용 — 민첩 +${v}</span>`); }
   else if (card.type === 'heal') {
     const before = battle.php;
-    battle.php = Math.min(battle.pmax, battle.php + card.value);
-    log(`<span class="lg-good">${card.icon} ${card.name} 사용 — HP ${battle.php - before} 회복</span>`);
+    battle.php = Math.min(battle.pmax, battle.php + v);
+    log(`<span class="lg-good">${card.icon} ${name} 사용 — HP ${battle.php - before} 회복</span>`);
   }
   renderBattle();
 }
@@ -347,10 +406,16 @@ $('#btn-attack').onclick = () => {
   const doPlayerHit = () => {
     let dmg;
     if (battle.pierceNext) {
+      // 관통 일격은 필중 (적 회피 불가)
       dmg = Math.round(pAtk() * 2);
       battle.pierceNext = false;
       log(`<span class="lg-hit">관통 일격! 방어를 무시하고 ${e.name}에게 ${dmg} 데미지</span>`);
     } else {
+      const dodge = Math.min(0.3, Math.max(0, (e.agi - pAgi()) * 0.03));
+      if (Math.random() < dodge) {
+        log(`<span class="lg-bad">${e.name}이(가) 공격을 회피했다!</span>`);
+        return;
+      }
       dmg = dmgRoll(pAtk(), e.def);
       log(`<span class="lg-hit">공격! ${e.name}에게 ${dmg} 데미지</span>`);
     }
@@ -458,18 +523,25 @@ function rollRarity() {
   return 'common';
 }
 
+function updateGachaButton() {
+  const btn = $('#btn-gacha');
+  const left = GACHA_PITY - state.pity;
+  btn.textContent = `🕯️ 초 녹이기 (${GACHA_COST} 골드) — 보유 ${state.gold}G · 전설 확정까지 ${left}회`;
+  btn.disabled = state.gold < GACHA_COST;
+}
+
 function renderGacha() {
   $('#gacha-result').innerHTML = '<p style="color:var(--dim)">초를 골라 밀랍을 녹여보자...</p>';
-  const btn = $('#btn-gacha');
-  btn.textContent = `🕯️ 초 녹이기 (${GACHA_COST} 골드)`;
-  btn.disabled = state.gold < GACHA_COST;
-  btn.onclick = doGacha;
+  updateGachaButton();
+  $('#btn-gacha').onclick = doGacha;
 }
 
 function doGacha() {
   if (state.gold < GACHA_COST) return;
   state.gold -= GACHA_COST;
-  const rarity = rollRarity();
+  // 천장: 이번이 GACHA_PITY회째(직전까지 GACHA_PITY-1회 연속 전설 없음)면 전설 확정
+  const rarity = state.pity >= GACHA_PITY - 1 ? 'legend' : rollRarity();
+  state.pity = rarity === 'legend' ? 0 : state.pity + 1;
   const pool = Object.values(CARDS).filter(c => c.rarity === rarity);
   const card = pool[Math.floor(Math.random() * pool.length)];
   state.cards[card.id] = (state.cards[card.id] || 0) + 1;
@@ -479,36 +551,62 @@ function doGacha() {
     <div class="gacha-card r-${card.rarity}" style="border-color:var(--${card.rarity})">
       <div class="g-icon">${card.icon}</div>
       <div class="g-rarity rc-${card.rarity}">${RARITY[card.rarity].label}</div>
-      <div class="g-name">${card.name}</div>
-      <div class="g-desc">${card.desc}</div>
+      <div class="g-name">${cardLabel(card.id)}</div>
+      <div class="g-desc">${cardDesc(card.id)}</div>
     </div>`;
-  const btn = $('#btn-gacha');
-  btn.textContent = `🕯️ 초 녹이기 (${GACHA_COST} 골드) — 보유 ${state.gold}G`;
-  btn.disabled = state.gold < GACHA_COST;
+  updateGachaButton();
 }
 
-// ---------- 보관함 ----------
+// ---------- 보관함 / 도감 ----------
 function renderDeck() {
   const wrap = $('#deck-list');
   wrap.innerHTML = '';
   const order = { legend: 0, hero: 1, rare: 2, common: 3 };
-  const owned = Object.entries(state.cards)
-    .filter(([, n]) => n > 0)
-    .sort((a, b) => order[CARDS[a[0]].rarity] - order[CARDS[b[0]].rarity]);
-  if (owned.length === 0) {
-    wrap.innerHTML = '<p style="color:var(--dim)">보유한 카드가 없다.</p>';
-    return;
-  }
-  owned.forEach(([id, n]) => {
+  const all = Object.keys(CARDS)
+    .sort((a, b) => order[CARDS[a].rarity] - order[CARDS[b].rarity]);
+  const ownedCount = all.filter(id => (state.cards[id] || 0) > 0).length;
+  $('#deck-progress').textContent = `도감 ${ownedCount} / ${all.length} · 🪙 ${state.gold} 골드`;
+
+  all.forEach(id => {
     const card = CARDS[id];
+    const n = state.cards[id] || 0;
     const div = document.createElement('div');
-    div.className = `card r-${card.rarity}`;
+    div.className = `card r-${card.rarity}` + (n === 0 ? ' unowned' : '');
+
+    if (n === 0) {
+      // 도감: 미보유 카드는 실루엣 (FR-13)
+      div.innerHTML = `
+        <div class="c-icon">❔</div>
+        <div class="c-name">???</div>
+        <div class="c-desc">미보유 · ${RARITY[card.rarity].label}</div>`;
+      wrap.appendChild(div);
+      return;
+    }
+
+    const lv = upLv(id);
+    let upHtml = '';
+    if (isUpgradable(id)) {
+      if (lv >= UPGRADE_MAX) {
+        upHtml = `<button class="btn-up" disabled>강화 완료</button>`;
+      } else {
+        const cost = UPGRADE_COST[card.rarity];
+        upHtml = `<button class="btn-up" data-up="${id}" ${canUpgrade(id) ? '' : 'disabled'}>⬆ 강화 (1장+${cost}G)</button>`;
+      }
+    }
     div.innerHTML = `
       <div class="c-icon">${card.icon}</div>
-      <div class="c-name">${card.name}</div>
-      <div class="c-desc">${card.desc}</div>
-      <div class="c-count">× ${n}</div>`;
+      <div class="c-name">${cardLabel(id)}</div>
+      <div class="c-desc">${cardDesc(id)}</div>
+      <div class="c-count">× ${n}</div>
+      ${upHtml}`;
     wrap.appendChild(div);
+  });
+
+  wrap.querySelectorAll('[data-up]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.up;
+      if (upgradeCard(id)) renderDeck();
+    });
   });
 }
 

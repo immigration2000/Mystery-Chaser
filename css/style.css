@@ -164,6 +164,16 @@ body {
 .deck-list .card:hover { transform: none; }
 .c-count { font-size: 10px; color: var(--gold); margin-top: 3px; }
 
+.card.unowned { opacity: .35; border-style: dashed; }
+.deck-progress { text-align: center; font-size: 13px; color: var(--gold); margin-bottom: 12px; }
+.btn-up {
+  display: block; width: 100%; margin-top: 6px; padding: 5px 2px;
+  background: rgba(201,162,39,.1); color: var(--gold);
+  border: 1px solid var(--gold); border-radius: 3px;
+  font-family: inherit; font-size: 10px; cursor: pointer;
+}
+.btn-up:disabled { opacity: .35; cursor: default; }
+
 .rc-common { color: var(--common); }
 .rc-rare { color: var(--rare); }
 .rc-hero { color: var(--hero); }

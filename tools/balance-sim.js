@@ -83,7 +83,12 @@ function simulate(charKey, chapterIdx) {
     const pDef = base.def + defB;
     const pAgi = base.agi + agiB;
 
-    const playerHit = () => { if (pierceNext) { ehp -= Math.round(pAtk * 2); pierceNext = false; } else ehp -= dmgRoll(pAtk, e.def); };
+    const playerHit = () => {
+      if (pierceNext) { ehp -= Math.round(pAtk * 2); pierceNext = false; return; } // 관통은 필중
+      const dodge = Math.min(0.3, Math.max(0, (e.agi - pAgi) * 0.03));
+      if (Math.random() < dodge) return;
+      ehp -= dmgRoll(pAtk, e.def);
+    };
     const enemyHit = () => {
       const a = e.atk * enemyAtkMul;
       if (round % 4 === 0) { php -= Math.max(1, Math.round(a * 1.3)); return; }
