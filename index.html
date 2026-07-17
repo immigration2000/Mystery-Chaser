@@ -22,8 +22,9 @@
 
 <!-- 캐릭터 선택 -->
 <section id="screen-select" class="screen">
-  <h2 class="screen-title">체이서를 선택하라</h2>
+  <h2 id="select-title" class="screen-title">체이서를 선택하라</h2>
   <div id="char-list" class="char-list"></div>
+  <button id="btn-select-back" class="btn btn-dim btn-block" style="display:none">돌아가기</button>
 </section>
 
 <!-- 허브 -->
@@ -31,9 +32,13 @@
   <header id="hub-status" class="hub-status"></header>
   <div class="hub-menu">
     <button class="btn btn-gold btn-block" data-nav="story">📖 스토리 — 사건 추적</button>
+    <button id="btn-nav-dungeon" class="btn btn-block" data-nav="dungeon">🌑 밤거리 순찰 — 일일 던전</button>
+    <button id="btn-nav-pvp" class="btn btn-block" data-nav="pvp">🕯️ 그림자 결투 — 고스트 리그</button>
     <button class="btn btn-block" data-nav="gacha">🃏 카드 뽑기</button>
     <button class="btn btn-block" data-nav="deck">🗂️ 카드 보관함</button>
+    <button class="btn btn-block" data-nav="switch">👥 체이서 교대</button>
     <button class="btn btn-block" data-nav="substory">📜 나의 사연</button>
+    <button id="btn-sound" class="btn btn-dim btn-block"></button>
     <button class="btn btn-dim btn-block" data-nav="title">타이틀로</button>
   </div>
 </section>
@@ -51,6 +56,7 @@
   <p id="scene-place" class="scene-place"></p>
   <div id="scene-text" class="scene-text"></div>
   <button id="btn-scene-next" class="btn btn-gold btn-block"></button>
+  <button id="btn-scene-skip" class="btn btn-dim btn-block" style="display:none">⏩ 건너뛰고 전투</button>
 </section>
 
 <!-- 전투 -->
@@ -58,6 +64,7 @@
   <div class="battle-enemy">
     <div id="enemy-info" class="unit-info"></div>
     <div class="hpbar"><div id="enemy-hp" class="hpfill enemy"></div></div>
+    <div id="enemy-buffs" class="buffs enemy-buffs"></div>
   </div>
   <div id="battle-log" class="battle-log"></div>
   <div class="battle-player">
@@ -67,6 +74,7 @@
   </div>
   <div id="hand" class="hand"></div>
   <div class="battle-actions">
+    <button id="btn-flee" class="btn btn-dim btn-flee">🏃 도주</button>
     <button id="btn-skill" class="btn"></button>
     <button id="btn-attack" class="btn btn-gold">⚔️ 공격</button>
   </div>
@@ -79,19 +87,46 @@
   <button id="btn-result-ok" class="btn btn-gold btn-block">확인</button>
 </section>
 
+<!-- 그림자 결투 -->
+<section id="screen-pvp" class="screen">
+  <h2 class="screen-title">🕯️ 그림자 결투</h2>
+  <p class="scene-place">떠도는 체이서들의 그림자(고스트)와 겨루는 비동기 결투<br>고스트도 나처럼 카드와 스킬을 사용한다 — 흑마법은 없다</p>
+  <div id="pvp-status" class="hub-status"></div>
+  <div id="pvp-ladder"></div>
+  <h3 class="pvp-sub">친선전 — 고스트 코드</h3>
+  <p class="scene-place">내 코드를 친구에게 보내고, 친구의 코드와 겨뤄보자 (보상 없음)</p>
+  <input id="ghost-code-mine" class="ghost-input" readonly title="내 고스트 코드">
+  <button id="btn-ghost-copy" class="btn btn-block">📋 내 고스트 코드 복사</button>
+  <input id="ghost-code-input" class="ghost-input" placeholder="상대의 고스트 코드 붙여넣기">
+  <button id="btn-ghost-fight" class="btn btn-gold btn-block">⚔️ 코드로 대결</button>
+  <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
+</section>
+
+<!-- 일일 던전 -->
+<section id="screen-dungeon" class="screen">
+  <h2 class="screen-title">🌑 밤거리 순찰</h2>
+  <p class="scene-place">해가 지면 그레이헤이븐의 골목은 순찰자의 것이다<br>매일 세 번, 밤거리의 위협을 정리하고 보수를 챙기자</p>
+  <div id="dungeon-info" class="hub-status"></div>
+  <button id="btn-dungeon-start" class="btn btn-gold btn-block"></button>
+  <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
+</section>
+
 <!-- 카드 뽑기 -->
 <section id="screen-gacha" class="screen">
   <h2 class="screen-title">🕯️ 밀랍 상인의 좌판</h2>
   <p class="scene-place">"어느 초를 녹이면 뭐가 나올지는... 나도 몰라."</p>
   <div id="gacha-result" class="gacha-result"></div>
   <button id="btn-gacha" class="btn btn-gold btn-block"></button>
+  <button id="btn-gacha10" class="btn btn-block"></button>
+  <p class="gacha-rates">획득 확률 — <span class="rc-common">일반 60%</span> · <span class="rc-rare">희귀 25%</span> · <span class="rc-hero">영웅 12%</span> · <span class="rc-legend">전설 3%</span><br>전설 미획득 30회째에는 전설 확정 (천장)</p>
   <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
 </section>
 
 <!-- 카드 보관함 -->
 <section id="screen-deck" class="screen">
-  <h2 class="screen-title">카드 보관함</h2>
-  <p class="scene-place">보유한 모든 카드가 전투 시작 시 뒤섞여 산차가 된다</p>
+  <h2 class="screen-title">카드 보관함 · 도감</h2>
+  <p class="scene-place">보유한 모든 카드가 전투 시작 시 뒤섞여 산차가 된다<br>강화: 같은 카드 1장 + 골드를 소비해 수치 +25%씩 (최대 +3)</p>
+  <p id="deck-progress" class="deck-progress"></p>
   <div id="deck-list" class="deck-list"></div>
   <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
 </section>
@@ -104,6 +139,7 @@
 </section>
 
 <script src="js/data.js"></script>
+<script src="js/sound.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>
