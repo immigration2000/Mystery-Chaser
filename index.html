@@ -20,7 +20,7 @@
   </div>
 </section>
 
-<!-- 캐릭터 선택 -->
+<!-- 캐릭터 선택 / 교대 -->
 <section id="screen-select" class="screen">
   <h2 id="select-title" class="screen-title">체이서를 선택하라</h2>
   <div id="char-list" class="char-list"></div>
@@ -34,8 +34,9 @@
     <button class="btn btn-gold btn-block" data-nav="story">📖 스토리 — 사건 추적</button>
     <button id="btn-nav-dungeon" class="btn btn-block" data-nav="dungeon">🌑 밤거리 순찰 — 일일 던전</button>
     <button id="btn-nav-pvp" class="btn btn-block" data-nav="pvp">🕯️ 그림자 결투 — 고스트 리그</button>
-    <button class="btn btn-block" data-nav="gacha">🃏 카드 뽑기</button>
-    <button class="btn btn-block" data-nav="deck">🗂️ 카드 보관함</button>
+    <button class="btn btn-block" data-nav="deckedit">🃏 덱 편성</button>
+    <button class="btn btn-block" data-nav="gacha">🎴 카드 뽑기 · 상점</button>
+    <button class="btn btn-block" data-nav="deck">🗂️ 보관함 · 강화</button>
     <button class="btn btn-block" data-nav="switch">👥 체이서 교대</button>
     <button class="btn btn-block" data-nav="substory">📜 나의 사연</button>
     <button id="btn-sound" class="btn btn-dim btn-block"></button>
@@ -66,6 +67,7 @@
     <div class="hpbar"><div id="enemy-hp" class="hpfill enemy"></div></div>
     <div id="enemy-buffs" class="buffs enemy-buffs"></div>
   </div>
+  <div id="clash-zone" class="clash-zone"></div>
   <div id="battle-log" class="battle-log"></div>
   <div class="battle-player">
     <div id="player-info" class="unit-info"></div>
@@ -73,10 +75,11 @@
     <div id="player-buffs" class="buffs"></div>
   </div>
   <div id="hand" class="hand"></div>
+  <div id="item-bar" class="item-bar"></div>
   <div class="battle-actions">
     <button id="btn-flee" class="btn btn-dim btn-flee">🏃 도주</button>
     <button id="btn-skill" class="btn"></button>
-    <button id="btn-attack" class="btn btn-gold">⚔️ 공격</button>
+    <button id="btn-attack" class="btn btn-gold">⚔️ 격돌!</button>
   </div>
 </section>
 
@@ -90,7 +93,7 @@
 <!-- 그림자 결투 -->
 <section id="screen-pvp" class="screen">
   <h2 class="screen-title">🕯️ 그림자 결투</h2>
-  <p class="scene-place">떠도는 체이서들의 그림자(고스트)와 겨루는 비동기 결투<br>고스트도 나처럼 카드와 스킬을 사용한다 — 흑마법은 없다</p>
+  <p class="scene-place">떠도는 체이서들의 그림자(고스트)와 겨루는 비동기 결투<br>고스트도 나처럼 카드를 내고 스킬을 쓴다 — 흑마법은 없다</p>
   <div id="pvp-status" class="hub-status"></div>
   <div id="pvp-ladder"></div>
   <h3 class="pvp-sub">친선전 — 고스트 코드</h3>
@@ -111,7 +114,7 @@
   <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
 </section>
 
-<!-- 카드 뽑기 -->
+<!-- 카드 뽑기 + 상점 -->
 <section id="screen-gacha" class="screen">
   <h2 class="screen-title">🕯️ 밀랍 상인의 좌판</h2>
   <p class="scene-place">"어느 초를 녹이면 뭐가 나올지는... 나도 몰라."</p>
@@ -119,13 +122,28 @@
   <button id="btn-gacha" class="btn btn-gold btn-block"></button>
   <button id="btn-gacha10" class="btn btn-block"></button>
   <p class="gacha-rates">획득 확률 — <span class="rc-common">일반 60%</span> · <span class="rc-rare">희귀 25%</span> · <span class="rc-hero">영웅 12%</span> · <span class="rc-legend">전설 3%</span><br>전설 미획득 30회째에는 전설 확정 (천장)</p>
+  <h3 class="pvp-sub">소모품 상점</h3>
+  <p class="scene-place">전투 중 라운드당 1개 사용 가능 — 쓰면 사라진다</p>
+  <div id="shop-list" class="item-bar shop"></div>
   <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
 </section>
 
-<!-- 카드 보관함 -->
+<!-- 덱 편성 -->
+<section id="screen-deckedit" class="screen">
+  <h2 class="screen-title">🃏 덱 편성</h2>
+  <p id="deckedit-info" class="scene-place"></p>
+  <button id="btn-deck-auto" class="btn btn-block">⚡ 자동 편성 (공격+회피 상위)</button>
+  <h3 class="pvp-sub">현재 덱</h3>
+  <div id="deckedit-current" class="deck-list"></div>
+  <h3 class="pvp-sub">보유 카드</h3>
+  <div id="deckedit-collection" class="deck-list"></div>
+  <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>
+</section>
+
+<!-- 보관함 / 도감 / 강화 -->
 <section id="screen-deck" class="screen">
-  <h2 class="screen-title">카드 보관함 · 도감</h2>
-  <p class="scene-place">보유한 모든 카드가 전투 시작 시 뒤섞여 산차가 된다<br>강화: 같은 카드 1장 + 골드를 소비해 수치 +25%씩 (최대 +3)</p>
+  <h2 class="screen-title">🗂️ 보관함 · 도감 · 강화</h2>
+  <p class="scene-place">에이스 카드를 골라 골드로 강화하자 (+1당 공격 +2 · 회피 +2%p, 최대 +5)<br>강화는 그 카드 전부에 적용된다</p>
   <p id="deck-progress" class="deck-progress"></p>
   <div id="deck-list" class="deck-list"></div>
   <button class="btn btn-dim btn-block" data-nav="hub">돌아가기</button>

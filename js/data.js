@@ -1,7 +1,8 @@
-// 미스테리 체이서: 검은 촛불 — 게임 데이터
-// 원작(2013 미스테리 체이서)의 시스템을 재해석한 오리지널 콘텐츠
+// 미스테리 체이서: 검은 촛불 — 게임 데이터 (v1.0 원작 재현판)
+// 전투 모델: 덱 순환식 — 매 라운드 카드 1장을 내서 공격, 카드에 공격/회피 스탯.
+// 수치는 tools/balance-sim.js 시뮬레이션으로 검증됨.
 
-// unlockAfter: 해금에 필요한 클리어 챕터 수 (0 = 기본 제공). 해금 상태는 저장하지 않고 cleared에서 파생
+// unlockAfter: 해금에 필요한 클리어 챕터 수 (0 = 기본). 해금 상태는 cleared에서 파생
 const CHARACTERS = {
   edwin: {
     id: 'edwin',
@@ -9,7 +10,7 @@ const CHARACTERS = {
     title: '얼음의 귀공자',
     icon: '❄️',
     unlockAfter: 0,
-    hp: 90, atk: 12, def: 6, agi: 8,
+    hp: 90, atk: 12, agi: 8,
     skill: {
       name: '절대영도',
       desc: '적의 공격력을 30% 감소시킨다. (전투당 1회, 전투 종료까지 지속)',
@@ -27,7 +28,7 @@ const CHARACTERS = {
     title: '광기의 사제',
     icon: '✝️',
     unlockAfter: 0,
-    hp: 110, atk: 10, def: 8, agi: 6,
+    hp: 110, atk: 10, agi: 6,
     skill: {
       name: '광신의 기도',
       desc: '최대 HP의 40%를 회복한다. (전투당 1회)',
@@ -45,10 +46,10 @@ const CHARACTERS = {
     title: '천재소녀',
     icon: '🔍',
     unlockAfter: 0,
-    hp: 85, atk: 9, def: 5, agi: 10,
+    hp: 85, atk: 9, agi: 10,
     skill: {
       name: '완전분석',
-      desc: '카드 2장을 드로우하고, 다음 공격이 방어를 무시하는 2배 데미지가 된다. (전투당 1회)',
+      desc: '카드를 2장 즉시 드로우한다. (전투당 1회)',
     },
     substory: [
       '열네 살에 왕립학회 논문을 반박한 소녀, 아리아 벨. 그녀의 스승은 도시 최고의 의학자였다.',
@@ -63,7 +64,7 @@ const CHARACTERS = {
     title: '열혈기자',
     icon: '📰',
     unlockAfter: 0,
-    hp: 85, atk: 11, def: 5, agi: 12,
+    hp: 85, atk: 11, agi: 12,
     skill: {
       name: '특종감각',
       desc: '3라운드 동안 공격력이 50% 증가한다. (전투당 1회)',
@@ -81,7 +82,7 @@ const CHARACTERS = {
     title: '심야의 후원자',
     icon: '🦇',
     unlockAfter: 3,
-    hp: 95, atk: 11, def: 6, agi: 9,
+    hp: 95, atk: 11, agi: 9,
     skill: {
       name: '갈증',
       desc: '이번 전투 동안 공격으로 입힌 데미지의 20%만큼 HP를 회복한다. (전투당 1회)',
@@ -99,10 +100,10 @@ const CHARACTERS = {
     title: '파문당한 견습 마녀',
     icon: '🕸️',
     unlockAfter: 5,
-    hp: 78, atk: 13, def: 4, agi: 9,
+    hp: 78, atk: 13, agi: 7,
     skill: {
-      name: '파멸의 저주',
-      desc: '적의 방어력을 50% 감소시킨다. (전투당 1회, 전투 종료까지 지속)',
+      name: '마녀의 저주',
+      desc: '적의 민첩을 6 낮춘다. 선공을 빼앗아 올 수 있다. (전투당 1회, 전투 종료까지 지속)',
     },
     substory: [
       '마고는 마녀 헤카테의 마지막 제자였다 — 스승의 주문서를 훔쳐 달아나기 전까지는.',
@@ -113,7 +114,6 @@ const CHARACTERS = {
   },
 };
 
-// 카드 등급: common(일반) / rare(희귀) / hero(영웅) / legend(전설)
 const RARITY = {
   common: { label: '일반', weight: 60 },
   rare:   { label: '희귀', weight: 25 },
@@ -121,69 +121,46 @@ const RARITY = {
   legend: { label: '전설', weight: 3 },
 };
 
-// type: weapon(+atk 지속) / armor(+def 지속) / charm(+agi 지속) / heal(즉시 회복)
+// 전투 카드: 매 라운드 1장을 내서 공격. atk = 데미지, eva = 그 라운드 내 회피율(%)
 const CARDS = {
-  rusty_dagger:  { id: 'rusty_dagger',  name: '녹슨 단검',        rarity: 'common', type: 'weapon', value: 3,  icon: '🗡️', desc: '이번 전투 동안 공격력 +3' },
-  old_coat:      { id: 'old_coat',      name: '낡은 코트',        rarity: 'common', type: 'armor',  value: 3,  icon: '🧥', desc: '이번 전투 동안 방어력 +3' },
-  bandage:       { id: 'bandage',       name: '붕대',             rarity: 'common', type: 'heal',   value: 15, icon: '🩹', desc: 'HP를 15 회복' },
-  tonic:         { id: 'tonic',         name: '각성제',           rarity: 'common', type: 'charm',  value: 2,  icon: '☕', desc: '이번 전투 동안 민첩 +2' },
-  silver_knife:  { id: 'silver_knife',  name: '은장도',           rarity: 'rare',   type: 'weapon', value: 6,  icon: '🔪', desc: '이번 전투 동안 공격력 +6' },
-  hunter_mail:   { id: 'hunter_mail',   name: '사냥꾼의 갑주',    rarity: 'rare',   type: 'armor',  value: 6,  icon: '🛡️', desc: '이번 전투 동안 방어력 +6' },
-  holy_water:    { id: 'holy_water',    name: '성수',             rarity: 'rare',   type: 'heal',   value: 30, icon: '💧', desc: 'HP를 30 회복' },
-  pocket_watch:  { id: 'pocket_watch',  name: '회중시계',         rarity: 'rare',   type: 'charm',  value: 4,  icon: '⌚', desc: '이번 전투 동안 민첩 +4' },
-  headsman:      { id: 'headsman',      name: '처형인의 대검',    rarity: 'hero',   type: 'weapon', value: 10, icon: '⚔️', desc: '이번 전투 동안 공격력 +10' },
-  abbey_plate:   { id: 'abbey_plate',   name: '수도원의 성갑',    rarity: 'hero',   type: 'armor',  value: 10, icon: '🏰', desc: '이번 전투 동안 방어력 +10' },
-  elixir:        { id: 'elixir',        name: '비약',             rarity: 'hero',   type: 'heal',   value: 50, icon: '🧪', desc: 'HP를 50 회복' },
-  shadow_cloak:  { id: 'shadow_cloak',  name: '그림자 망토',      rarity: 'hero',   type: 'charm',  value: 6,  icon: '🌘', desc: '이번 전투 동안 민첩 +6' },
-  whisper:       { id: 'whisper',       name: '서리검 「위스퍼」', rarity: 'legend', type: 'weapon', value: 15, icon: '❄️', desc: '이번 전투 동안 공격력 +15' },
-  martyr_relic:  { id: 'martyr_relic',  name: '순교자의 성물',    rarity: 'legend', type: 'armor',  value: 15, icon: '📿', desc: '이번 전투 동안 방어력 +15' },
-  life_potion:   { id: 'life_potion',   name: '생명의 물약',      rarity: 'legend', type: 'heal',   value: 9999, icon: '💖', desc: 'HP를 전부 회복' },
-  time_watch:    { id: 'time_watch',    name: '시간왜곡 회중시계', rarity: 'legend', type: 'charm',  value: 10, icon: '🕰️', desc: '이번 전투 동안 민첩 +10' },
+  rusty_dagger: { id: 'rusty_dagger', name: '녹슨 단검',         rarity: 'common', atk: 8,  eva: 5,  icon: '🗡️' },
+  old_coat:     { id: 'old_coat',     name: '낡은 코트',         rarity: 'common', atk: 4,  eva: 18, icon: '🧥' },
+  silver_knife: { id: 'silver_knife', name: '은장도',            rarity: 'rare',   atk: 12, eva: 8,  icon: '🔪' },
+  hunter_mail:  { id: 'hunter_mail',  name: '사냥꾼의 갑주',     rarity: 'rare',   atk: 6,  eva: 26, icon: '🛡️' },
+  pocket_watch: { id: 'pocket_watch', name: '회중시계',          rarity: 'rare',   atk: 9,  eva: 15, icon: '⌚' },
+  headsman:     { id: 'headsman',     name: '처형인의 대검',     rarity: 'hero',   atk: 18, eva: 4,  icon: '⚔️' },
+  abbey_plate:  { id: 'abbey_plate',  name: '수도원의 성갑',     rarity: 'hero',   atk: 8,  eva: 32, icon: '🏰' },
+  shadow_cloak: { id: 'shadow_cloak', name: '그림자 망토',       rarity: 'hero',   atk: 11, eva: 26, icon: '🌘' },
+  whisper:      { id: 'whisper',      name: '서리검 「위스퍼」',  rarity: 'legend', atk: 24, eva: 10, icon: '❄️' },
+  martyr_relic: { id: 'martyr_relic', name: '순교자의 성물',     rarity: 'legend', atk: 12, eva: 38, icon: '📿' },
+  time_watch:   { id: 'time_watch',   name: '시간왜곡 회중시계', rarity: 'legend', atk: 17, eva: 28, icon: '🕰️' },
 };
 
-const STARTING_CARDS = { rusty_dagger: 2, old_coat: 1, bandage: 2 };
+// 소모품: 카드와 별개. 전투 중 라운드당 1개 사용 가능, 사용하면 사라진다. 상점에서 구매
+const CONSUMABLES = {
+  bandage:     { id: 'bandage',     name: '붕대',          icon: '🩹', price: 30,  heal: 30 },
+  holy_water:  { id: 'holy_water',  name: '성수',          icon: '💧', price: 70,  heal: 60 },
+  elixir:      { id: 'elixir',      name: '비약',          icon: '🧪', price: 150, heal: 120 },
+  life_potion: { id: 'life_potion', name: '생명의 물약',   icon: '💖', price: 300, heal: 9999 },
+  tonic:       { id: 'tonic',       name: '각성제',        icon: '☕', price: 50,  agi: 3 },
+};
+
+// 덱: 보유 카드에서 지참 한도만큼 선택 (중복 허용). 레벨업 시 한도 증가 (원작 재현)
+const DECK_LIMIT = (level) => Math.min(12, 4 + level);
+const STARTING_CARDS = { rusty_dagger: 3, old_coat: 2 };
+const STARTING_ITEMS = { bandage: 2 };
+
+// 강화: 골드로 카드 종류 단위 +1~+5 (에이스 카드 육성). +1당 공격 +2, 회피 +2%p
+const UPGRADE_MAX = 5;
+const UPGRADE_RARITY_MULT = { common: 1, rare: 2, hero: 3, legend: 5 };
+const upgradeCost = (cardId, curLv) => (curLv + 1) * 30 * UPGRADE_RARITY_MULT[CARDS[cardId].rarity];
+const upgradedAtk = (cardId, lv) => CARDS[cardId].atk + 2 * lv;
+const upgradedEva = (cardId, lv) => Math.min(45, CARDS[cardId].eva + 2 * lv);
 
 const GACHA_COST = 80;
-const GACHA_PITY = 30;   // 전설 미획득 뽑기가 30회째면 전설 확정
+const GACHA_PITY = 30;
 
-// 일일 던전 「밤거리 순찰」 (FEATURE_SPEC §6.3)
-const DUNGEON_RUNS_PER_DAY = 3;
-const DUNGEON_CARD_DROP = 0.15; // 일반·희귀 풀에서 1장
-const DUNGEON_FOES = [
-  { name: '취한 눈의 강도', icon: '🔪' },
-  { name: '들개 무리', icon: '🐕' },
-  { name: '묘지기의 그림자', icon: '⚰️' },
-  { name: '광기 어린 부랑자', icon: '🎩' },
-  { name: '검은 초를 든 신도', icon: '🕯️' },
-];
-function dungeonEnemyStats(level) {
-  return {
-    hp: 60 + 18 * level,
-    atk: Math.round(8 + 2.4 * level),
-    def: 2 + level,
-    agi: Math.round(5 + 1.2 * level),
-  };
-}
-function dungeonReward(level) {
-  return { gold: 50 + 14 * level, exp: 25 + 7 * level };
-}
-
-// 그림자 결투 (FEATURE_SPEC §12) — 수치는 tools/pvp-sim.js 로 검증됨
-const PVP_UNLOCK_CLEARED = 2;
-const GHOST_CODE_PREFIX = 'MCG1.';
-const GHOST_STARTER_DECK = ['rusty_dagger', 'rusty_dagger', 'old_coat', 'bandage', 'bandage'];
-const GHOST_LADDER = [
-  { name: '견습 체이서 롬',     charId: 'edwin',   level: 2, deck: [...GHOST_STARTER_DECK], upgrades: {}, reward: 60 },
-  { name: '뒷골목 해결사 피트', charId: 'jack',    level: 2, deck: [...GHOST_STARTER_DECK], upgrades: {}, reward: 80 },
-  { name: '순례자 브람',        charId: 'gregor',  level: 4, deck: [...GHOST_STARTER_DECK, 'hunter_mail', 'holy_water'], upgrades: {}, reward: 100 },
-  { name: '기록보관인 셀레네',  charId: 'aria',    level: 5, deck: [...GHOST_STARTER_DECK, 'silver_knife', 'pocket_watch'], upgrades: {}, reward: 130 },
-  { name: '순찰대장 오스카',    charId: 'edwin',   level: 5, deck: [...GHOST_STARTER_DECK, 'headsman'], upgrades: {}, reward: 160 },
-  { name: '진홍의 밤',          charId: 'violeta', level: 7, deck: [...GHOST_STARTER_DECK, 'headsman', 'abbey_plate', 'holy_water'], upgrades: { headsman: 1 }, reward: 220 },
-  { name: '대마녀의 후계',      charId: 'margo',   level: 9, deck: [...GHOST_STARTER_DECK, 'whisper', 'martyr_relic', 'elixir'], upgrades: { whisper: 1 }, reward: 300 },
-];
-const UPGRADE_MAX = 3;   // 카드 강화 최대 레벨 (+3 = 기본 수치 ×1.75)
-const UPGRADE_COST = { common: 40, rare: 80, hero: 160, legend: 320 };
-
+// 챕터 적: hp/agi/atkBonus(카드 공격에 더해지는 보정)/deck. 흑마법: 5라운드마다 회피 불가 x1.2
 const CHAPTERS = [
   {
     title: '제1장 · 안개 낀 부두',
@@ -198,7 +175,10 @@ const CHAPTERS = [
       '쓰러진 노동자의 소매에서 검은 밀랍 조각이 떨어졌다. 밀랍에는 촛대 문장이 찍혀 있다.',
       '아무래도 이 도시의 광기에는 주인이 있는 모양이다. 단서는 폐쇄된 예배당을 가리킨다.',
     ],
-    enemy: { name: '광인이 된 부두 노동자', icon: '🪝', hp: 90, atk: 10, def: 3, agi: 6 },
+    enemy: {
+      name: '광인이 된 부두 노동자', icon: '🪝', hp: 80, agi: 6, atkBonus: 1,
+      deck: ['rusty_dagger', 'rusty_dagger', 'rusty_dagger', 'old_coat', 'old_coat'],
+    },
     reward: { exp: 60, gold: 100, card: 'silver_knife' },
   },
   {
@@ -213,7 +193,10 @@ const CHAPTERS = [
       '수도사의 품에서 나온 장부에는 "실험체 후보" 명단이 빼곡했다. 전부 실종자들의 이름이다.',
       '명단의 발송지는 옛 교도소 지하 — 20년 전 폐쇄된 곳이다.',
     ],
-    enemy: { name: '검은 촛불의 수도사', icon: '🕯️', hp: 130, atk: 13, def: 5, agi: 9 },
+    enemy: {
+      name: '검은 촛불의 수도사', icon: '🕯️', hp: 110, agi: 8, atkBonus: 3,
+      deck: ['rusty_dagger', 'rusty_dagger', 'silver_knife', 'silver_knife', 'old_coat', 'old_coat'],
+    },
     reward: { exp: 80, gold: 120, card: 'hunter_mail' },
   },
   {
@@ -228,7 +211,10 @@ const CHAPTERS = [
       '실험체 9호는 마지막 순간, 사람의 눈으로 돌아와 한 곳을 가리켰다 — 공동묘지의 오래된 마녀의 비석.',
       '기록에 따르면 이 실험은 "그분"의 주문 설계를 마녀에게서 받아왔다고 한다.',
     ],
-    enemy: { name: '실험체 9호', icon: '⛓️', hp: 180, atk: 16, def: 8, agi: 5 },
+    enemy: {
+      name: '실험체 9호', icon: '⛓️', hp: 140, agi: 5, atkBonus: 4,
+      deck: ['silver_knife', 'silver_knife', 'hunter_mail', 'hunter_mail', 'rusty_dagger', 'rusty_dagger'],
+    },
     reward: { exp: 110, gold: 150, card: 'headsman' },
   },
   {
@@ -243,7 +229,10 @@ const CHAPTERS = [
       '흩어지는 그림자가 마지막으로 속삭였다. "대성당 첨탑. 발타자르. 촛불이 전부 켜지기 전에."',
       '도시의 모든 종이 일제히 울리기 시작했다. 초대장인 셈이다.',
     ],
-    enemy: { name: '마녀 헤카테의 그림자', icon: '🌙', hp: 210, atk: 18, def: 9, agi: 12 },
+    enemy: {
+      name: '마녀 헤카테의 그림자', icon: '🌙', hp: 170, agi: 11, atkBonus: 6,
+      deck: ['silver_knife', 'silver_knife', 'shadow_cloak', 'shadow_cloak', 'pocket_watch', 'pocket_watch', 'hunter_mail'],
+    },
     reward: { exp: 150, gold: 180, card: 'shadow_cloak' },
   },
   {
@@ -260,7 +249,50 @@ const CHAPTERS = [
       '그러나 발타자르의 시신은 끝내 발견되지 않았다. 밀랍 한 줌만이 첨탑 바닥에 남아 있었다.',
       '— 1부 끝. 체이서의 추적은 계속된다. —',
     ],
-    enemy: { name: '주교 발타자르', icon: '🕯️', hp: 280, atk: 21, def: 11, agi: 11 },
+    enemy: {
+      name: '주교 발타자르', icon: '🕯️', hp: 225, agi: 10, atkBonus: 6,
+      deck: ['headsman', 'headsman', 'abbey_plate', 'abbey_plate', 'whisper', 'shadow_cloak', 'silver_knife'],
+    },
     reward: { exp: 220, gold: 300, card: 'whisper' },
   },
+];
+
+// 일일 던전 「밤거리 순찰」
+const DUNGEON_RUNS_PER_DAY = 3;
+const DUNGEON_CARD_DROP = 0.15;    // 일반·희귀 전투 카드
+const DUNGEON_BANDAGE_DROP = 0.3;  // 붕대 1개
+const DUNGEON_FOES = [
+  { name: '취한 눈의 강도', icon: '🔪' },
+  { name: '들개 무리', icon: '🐕' },
+  { name: '묘지기의 그림자', icon: '⚰️' },
+  { name: '광기 어린 부랑자', icon: '🎩' },
+  { name: '검은 초를 든 신도', icon: '🕯️' },
+];
+function dungeonEnemyStats(L) {
+  const pool = L <= 2 ? ['rusty_dagger', 'rusty_dagger', 'old_coat', 'silver_knife', 'hunter_mail']
+    : L <= 4 ? ['silver_knife', 'silver_knife', 'hunter_mail', 'pocket_watch', 'shadow_cloak', 'rusty_dagger']
+    : ['silver_knife', 'headsman', 'shadow_cloak', 'abbey_plate', 'pocket_watch', 'whisper'];
+  return {
+    hp: 45 + 15 * L,
+    agi: 4 + L,
+    atkBonus: Math.max(0, L - 2),
+    deck: pool.slice(0, 5 + Math.min(3, L)),
+  };
+}
+function dungeonReward(level) {
+  return { gold: 50 + 14 * level, exp: 25 + 7 * level };
+}
+
+// 그림자 결투 — 고스트도 캐릭터+덱으로 같은 규칙으로 싸운다 (흑마법 없음)
+const PVP_UNLOCK_CLEARED = 2;
+const GHOST_CODE_PREFIX = 'MCG2.'; // v1.0: 덱 포함 포맷
+const GHOST_STARTER_DECK = ['rusty_dagger', 'rusty_dagger', 'rusty_dagger', 'old_coat', 'old_coat'];
+const GHOST_LADDER = [
+  { name: '견습 체이서 롬',     charId: 'aria',    level: 1, deck: [...GHOST_STARTER_DECK], upgrades: {}, reward: 60 },
+  { name: '뒷골목 해결사 피트', charId: 'jack',    level: 1, deck: [...GHOST_STARTER_DECK], upgrades: {}, reward: 80 },
+  { name: '기록보관인 셀레네',  charId: 'aria',    level: 4, deck: [...GHOST_STARTER_DECK, 'silver_knife', 'pocket_watch', 'shadow_cloak'], upgrades: {}, reward: 100 },
+  { name: '순례자 브람',        charId: 'gregor',  level: 3, deck: [...GHOST_STARTER_DECK, 'silver_knife'], upgrades: {}, reward: 130 },
+  { name: '순찰대장 오스카',    charId: 'edwin',   level: 5, deck: [...GHOST_STARTER_DECK, 'headsman', 'hunter_mail', 'silver_knife'], upgrades: {}, reward: 160 },
+  { name: '진홍의 밤',          charId: 'violeta', level: 7, deck: [...GHOST_STARTER_DECK, 'headsman', 'abbey_plate', 'shadow_cloak', 'silver_knife', 'pocket_watch', 'silver_knife'], upgrades: {}, reward: 220 },
+  { name: '대마녀의 후계',      charId: 'margo',   level: 9, deck: ['whisper', 'martyr_relic', 'headsman', 'shadow_cloak', 'abbey_plate', 'silver_knife', 'silver_knife', 'pocket_watch', 'hunter_mail', 'rusty_dagger', 'rusty_dagger', 'old_coat'].slice(0, DECK_LIMIT(9)), upgrades: { whisper: 1 }, reward: 300 },
 ];
